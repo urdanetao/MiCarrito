@@ -1,0 +1,33 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    /* Fuente estándar moderna (System fonts) */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #666;
+    font-size: 15px;
+
+    /* Mejora la renderización de fuentes en distintos navegadores */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+
+    line-height: 1.3;
+    min-height: 100vh;
+
+    /* Evita cursor de texto en espacios vacíos y componentes no editables */
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+/* Restaura selección de texto en inputs y textareas */
+input, textarea {
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+}
