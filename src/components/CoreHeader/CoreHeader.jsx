@@ -13,7 +13,7 @@ const CoreHeader = ({ sessionData, moduleName, backColor }) => {
 
     if (typeof sessionData === "object" && sessionData !== null) {
         logued =
-            sessionData.hasOwnProperty("sessionId") &&
+            Object.hasOwn(sessionData, "sessionId") &&
                 typeof sessionData.sessionId === "string" &&
                 sessionData.sessionId.trim() !== "" ? true : false;
 
@@ -21,10 +21,10 @@ const CoreHeader = ({ sessionData, moduleName, backColor }) => {
             moduleName = defaultModuleName;
         }
 
-        if (logued && sessionData.hasOwnProperty("user") && typeof sessionData.user === "object" && sessionData.user !== null) {
-            if (sessionData.user.hasOwnProperty("nombre") && typeof sessionData.user.nombre === "string" && sessionData.user.nombre.trim() !== "") {
+        if (logued && Object.hasOwn(sessionData, "user") && typeof sessionData.user === "object" && sessionData.user !== null) {
+            if (Object.hasOwn(sessionData.user, "nombre") && typeof sessionData.user.nombre === "string" && sessionData.user.nombre.trim() !== "") {
                 userName = sessionData.user.nombre;
-            } else if (sessionData.user.hasOwnProperty("nickname") && typeof sessionData.user.nickname === "string" && sessionData.user.nickname.trim() !== "") {
+            } else if (Object.hasOwn(sessionData.user, "nickname") && typeof sessionData.user.nickname === "string" && sessionData.user.nickname.trim() !== "") {
                 userName = sessionData.user.nickname;
             }
         }

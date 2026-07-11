@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import { useRef } from 'react';
 import { COLOR_MAP, DISABLED_COLOR, FORMSTATE } from '../../util/constants.js';
 
 const CoreButton = ({

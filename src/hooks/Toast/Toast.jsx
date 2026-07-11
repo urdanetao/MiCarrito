@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { FaBell, FaCheckCircle, FaExclamationTriangle, FaInfoCircle, FaTimesCircle } from 'react-icons/fa';
 import { COLOR_MAP } from '../../util/constants';
+import ToastContext from './ToastContext';
 
 const TOAST_PROGRESS_KEYFRAMES = `
 @keyframes toast-progress-shrink {
@@ -118,9 +119,6 @@ const TOAST_STYLES = {
 	},
 };
 
-const ToastContext = createContext({ showToast: () => { } });
-
-export const useToast = () => useContext(ToastContext);
 
 let toastId = 0;
 
@@ -144,16 +142,16 @@ export const ToastProvider = ({ children }) => {
 		}, 350);
 	}, []);
 
-	const startTimer = (id, duration) => {
+	const startTimer = useCallback((id, duration) => {
 		startTimes.current[id] = Date.now();
 		timers.current[id] = setTimeout(() => removeToast(id), duration);
 		remainingTimes.current[id] = duration;
-	};
+	}, [removeToast]);
 
 	const pauseTimer = (id) => {
 		if (timers.current[id]) {
 			clearTimeout(timers.current[id]);
-			const elapsed = Date.now() - startTimes.current[id];
+			const elapsed = Date.now() - startTimes.current[id]; // eslint-disable-line react-hooks/purity
 			remainingTimes.current[id] -= elapsed;
 			setPausedToasts((prev) => [...prev, id]);
 		}
@@ -170,11 +168,12 @@ export const ToastProvider = ({ children }) => {
 		const id = ++toastId;
 		setToasts((toasts) => [...toasts, { id, message, type: color, duration }]);
 		setTimeout(() => startTimer(id, duration), 0);
-	}, []);
+	}, [startTimer]);
 
 	React.useEffect(() => {
+		const currentTimers = timers.current;
 		return () => {
-			Object.values(timers.current).forEach(clearTimeout);
+			Object.values(currentTimers).forEach(clearTimeout);
 		};
 	}, []);
 

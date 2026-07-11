@@ -19,14 +19,15 @@
 ### Frontend
 - React 19 + Vite 8, JavaScript (no TypeScript)
 - Estilos inline via objetos JS (sin CSS externo salvo `index.css`)
-- Componentes Core desde base: `CoreWindow`, `CoreGroup`, `CoreText`, `CorePassword`, `CoreLabel`, `CoreVSep`, `CoreButton`, `CoreHeader`
+- Componentes Core desde base: `CoreWindow`, `CoreGroup`, `CoreText`, `CorePassword`, `CoreLabel`, `CoreVSep`, `CoreButton`, `CoreHeader`, `CoreCard`, `CoreConfirm`
 - Hooks: `useLazyFetch` (API), `Toast` (notificaciones)
 - `react-icons` para iconos
 - Build target: `chrome69` (WebView del emulador es Chrome 69)
+- React Compiler habilitado via Babel plugin
 
 ### Backend (PHP)
 - `api.php` — Router principal, CORS, dispatch
-- `apicode.php` — Funciones: `login`, `logout`, `isLoggedIn` (solo 3 funciones públicas)
+- `apicode.php` — Funciones: `login`, `logout`, `isLoggedIn`, `get_categorias`, `save_categoria`, `delete_categoria`
 - `common.php` — Helpers: `getResultObject`, `getUID`, `saveLog`
 - `dbinfo.php` — Conexión MySQL (usuario `saiver_dbuser`)
 - `mysql-data-manager.php` — Capa de acceso a BD
@@ -62,6 +63,17 @@
 | `admin` | INT | 1 = admin |
 
 Admin por defecto: `admin` / `admin` (hash SHA3-512).
+
+### Tabla `categorias`
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | INT(10) AUTO_INCREMENT | PK |
+| `idusu` | INT(10) | FK → usuarios.id (cada usuario tiene sus categorías) |
+| `descrip` | VARCHAR(30) | Descripción de la categoría |
+
+- Las categorías se muestran ordenadas alfabéticamente por `descrip`
+- CRUD completo: crear, editar, eliminar
+- Todas las operaciones filtran por `idusu` del token de sesión
 
 ## 5. Configuración de Vite
 
@@ -115,6 +127,20 @@ VITE_API_URL=php/api.php
 - API: `POST php/api.php { action: "login", params: { nickname, pwd }, token }`
 - Sesión guardada en sessionStorage via `setSessionData`
 
+## 9. Módulo Categorías
+
+- Pantalla CRUD dentro de `CoreWindow` con color verde (`#388e3c`)
+- Tarjetas (`CoreCard`) con icono `IoPricetagOutline` por categoría
+- Grid responsive: `repeat(auto-fill, minmax(220px, 1fr))`
+- Formulario: `CoreText` con `entryMode=UPPER`, `maxLength=30`
+- Estados: agregar (botón Guardar), editar (botón Modificar/Cancelar)
+- Eliminar con `CoreConfirm` de confirmación
+- API acciones: `get_categorias`, `save_categoria`, `delete_categoria`
+- Botón atrás del teléfono manejado vía `history.pushState` + `popstate`
+  - Si CoreConfirm abierto → dismissConfirm
+  - Si editando → cancelar edición
+  - Si nada → volver al menú principal
+
 ## 9. API — CORS
 
 Orígenes permitidos en `api.php`:
@@ -127,7 +153,15 @@ https://163.245.209.2
 https://almacenadorasaiver.com
 ```
 
-## 10. Rutas de Archivos Clave
+## 10. Navegación entre Pantallas
+
+- `Engine.jsx` maneja estado `selectedSection` (null = menú principal)
+- `MenuPrincipal` recibe `onSelect(key)` para opciones no-logout
+- Renderizado condicional: `selectedSection === 'categorias'` → `<Categorias />`
+- Cada pantalla recibe `onBack` para volver al menú
+- Patrón reutilizable para futuras pantallas (config, compras)
+
+## 11. Rutas de Archivos Clave
 
 ```
 Frontend:
@@ -211,3 +245,4 @@ Android:
 | `db8a347` | chore: initial scaffold with Vite + React 19 | 2026-07-06 |
 | `b25d42c` | docs: add project memory (MEMORIA.md) | 2026-07-06 |
 | `c6ce4e3` | feat: implement Login, Engine, Core components, WebView config, and project memory | 2026-07-11 |
+| `e606846` | fix: Reducir ErrorModal a errores criticos y usar toast nativo para mensajes al usuario | 2026-07-11 |

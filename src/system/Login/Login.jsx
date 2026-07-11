@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LuLogIn } from "react-icons/lu";
 import { ENTRY_MODE, COLOR_MAP } from "../../util/constants";
 import { CoreWindow, CoreGroup, CoreText, CorePassword, CoreVSep, CoreButton } from "../../components";
@@ -61,6 +61,7 @@ const Login = ({ setSession }) => {
 
             setSession(newSessionData);
         } catch {
+            // intentionally empty
         }
     }
 

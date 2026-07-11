@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, forwardRef, useImperativeHandle } from 'react';
+import { useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { FORMSTATE, ENTRY_MODE } from '../../util/constants';
 import { RxCross2 } from "react-icons/rx";
 import { focusElement, focusNextControl } from '../../util/focusNavigation';

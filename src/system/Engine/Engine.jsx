@@ -1,16 +1,19 @@
 
-import { FaSignOutAlt } from 'react-icons/fa';
-import { CoreButton } from "../../components";
+import { useState } from 'react';
 import { getSessionData, setSessionData } from "../../util/util";
 import useLazyFetch from "../../hooks/useLazyFetch/useLazyFetch";
+import { MenuPrincipal, CoreConfirm } from "../../components";
+import Categorias from "../Categorias/Categorias";
 
 const Engine = ({ setSession }) => {
     const { fetchData, BackdropLoader, ErrorModal } = useLazyFetch();
+    const [selectedSection, setSelectedSection] = useState(null);
 
     const handleLogout = async () => {
         try {
             await fetchData("logout", {});
         } catch {
+            // intentionally empty
         }
 
         const emptySession = getSessionData(true);
@@ -20,26 +23,22 @@ const Engine = ({ setSession }) => {
         }
     };
 
-    const containerStyles = {
-        width: "100%",
-        height: "100%",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
+    const handleBack = () => {
+        setSelectedSection(null);
     };
 
     return (
-        <div style={containerStyles}>
-            <CoreButton
-                label="Cerrar Sesión"
-                icon={<FaSignOutAlt />}
-                color="#d32f2f"
-                onClick={handleLogout}
-                ignoreFormState={true}
-            />
+        <>
+            {selectedSection === null && (
+                <MenuPrincipal onLogout={handleLogout} onSelect={setSelectedSection} />
+            )}
+            {selectedSection === 'categorias' && (
+                <Categorias onBack={handleBack} />
+            )}
             <BackdropLoader />
             <ErrorModal />
-        </div>
+            <CoreConfirm />
+        </>
     );
 }
 

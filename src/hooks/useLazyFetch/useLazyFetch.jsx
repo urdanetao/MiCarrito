@@ -1,3 +1,4 @@
+/* global Android */
 import React, { useCallback, useState } from 'react';
 import { useToast } from '../Toast';
 import { getSessionData } from '../../util/util';
@@ -51,11 +52,6 @@ const BACKDROP_STYLES = {
 	padding: 0,
 	margin: 0,
 	overflow: 'hidden',
-};
-
-const IMG_STYLES = {
-	width: 80,
-	height: 80,
 };
 
 const ensureBackdropEl = () => {
@@ -279,15 +275,10 @@ const useLazyFetch = () => {
 		message: '',
 		data: {},
 	});
-	const [pendingRequests, setPendingRequests] = useState(() => lazyFetchState.pendingRequests);
-	const [loaderHostId, setLoaderHostId] = useState(() => lazyFetchState.loaderHostId);
 	const [errorModal, setErrorModal] = useState({ open: false, message: '' });
 	const toast = useToast();
-	const loading = pendingRequests > 0;
 
-	React.useEffect(() => subscribeLazyFetchState((snapshot) => {
-		setPendingRequests(snapshot.pendingRequests);
-		setLoaderHostId(snapshot.loaderHostId);
+	React.useEffect(() => subscribeLazyFetchState(() => {
 	}), []);
 
 	const fetchData = useCallback(async (action, params = {}) => {
@@ -355,7 +346,7 @@ const useLazyFetch = () => {
 		} finally {
 			decrementGlobalPendingRequests();
 		}
-	}, []);
+	}, [toast]);
 
 	const BackdropLoader = React.useCallback(function BackdropLoader() {
 		React.useEffect(() => {
@@ -380,7 +371,7 @@ const useLazyFetch = () => {
 			return () => {
 				closeNativeDialog(dialogElement);
 			};
-		}, [errorModal.open]);
+		}, [errorModal.open]); // eslint-disable-line react-hooks/exhaustive-deps
 
 		if (!errorModal.open) return null;
 		return (

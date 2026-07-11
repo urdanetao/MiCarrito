@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 const CoreGroup = ({ label, children, style }) => {
     const fieldsetStyles = {

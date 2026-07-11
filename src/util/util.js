@@ -18,7 +18,7 @@ function getSessionData(getEmpty = false) {
 
     try {
         return JSON.parse(data);
-    } catch (error) {
+    } catch {
         return emptySessionData;
     }
 }
@@ -27,7 +27,7 @@ function setSessionData(data) {
     try {
         const stringData = JSON.stringify(data);
         sessionStorage.setItem('sessionData', stringData);
-    } catch (error) {
+    } catch {
         return emptySessionData;
     }
 }
