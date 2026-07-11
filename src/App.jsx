@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CoreHeader } from './components';
 import { Login, Engine } from './system';
 import { getSessionData } from './util/util';
+import { LiaBalanceScaleSolid } from 'react-icons/lia';
 
 function App() {
     const moduleName = "MiCarrito";

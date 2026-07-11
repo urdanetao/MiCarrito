@@ -175,18 +175,39 @@ Android:
 | 4 | Icono launcher con fondo blanco (`@android:color/white`) — sin fondo oscuro | 2026-07-07 |
 | 5 | API backend en `micarrito/php/` en producción | — |
 | 6 | Login sin empresa, sin ForgotPassword | 2026-07-06 |
+| 7 | Edge-to-Edge con padding para respetar barra de estado (`WindowInsetsCompat`) | 2026-07-11 |
+| 8 | Validación proactiva de conectividad con `ConnectivityManager.NetworkCallback` | 2026-07-11 |
+| 9 | Toast nativo de Android via JS Interface (`Android.showToast()`) en lugar de toast React | 2026-07-11 |
+| 10 | ErrorModal solo para errores críticos/debug, mensajes de usuario con toast nativo | 2026-07-11 |
+| 11 | Eliminar `setErrorModal` de errores HTTP y catch general — solo quedan para JSON inválido y respuesta ilegible | 2026-07-11 |
 
-## 12. Lecciones Aprendidas
+## 12. Notas del Usuario
+
+- **Teclado en inglés**: El usuario escribe sin acentos porque su teclado está en inglés. Siempre colocar acentos correctos en textos visibles al usuario (strings, mensajes de error, etc.).
+
+## 13. Directivas de Desarrollo
+
+- **ErrorModal**: Solo se usa para mostrar errores críticos de la aplicación con fines de depuración. Si el sistema funciona correctamente, nunca se muestra. Los mensajes al usuario se muestran con toast nativo de Android (`Android.showToast()`), NO con el toast de React ni con ErrorModal.
+- **Toast nativo**: En `useLazyFetch`, usar `Android.showToast(message, durationMs)` con fallback a `toast.showToast()` para desarrollo en navegador. El toast de React NO se usa en producción.
+- **Mensajes al usuario**: Siempre con acentos correctos. Ejemplos: "Conexion exitosa", "Error al guardar", "Conexion a Internet perdida".
+
+## 14. Lecciones Aprendidas
 
 1. **`VITE_API_URL` en `.env.production`** — La ruta debe ser relativa (`php/api.php`) y NO absoluta (`/api.php`) cuando el frontend está en un subdirectorio del servidor.
 2. **`build.target`** — El WebView del emulador usa Chrome 69 que no soporta `??` ni `?.`. Fijar `build.target: 'chrome69'` en `vite.config.js`.
 3. **CORS** — Agregar el dominio de producción a `$allowedOrigins` en `api.php`.
 4. **Layout WebView** — En ConstraintLayout, `match_parent` funciona correctamente para que el WebView ocupe toda la pantalla (como en GRIM).
 5. **OPcache** — Después de subir PHP nuevos a producción, reiniciar PHP-FPM o tocar los archivos para invalidar caché.
+6. **Edge-to-Edge** — `enableEdgeToEdge()` es necesario para que la app llene la pantalla, pero se debe aplicar padding con `WindowInsetsCompat` para respetar la barra de estado.
+7. **Conectividad** — Usar `ConnectivityManager.NetworkCallback` para monitorear cambios de red en tiempo real, no solo validar al inicio.
+8. **Toast nativo** — En apps Android, usar `Android.showToast()` desde JS en lugar de toast de React. Incluir fallback para desarrollo en navegador.
+9. **ErrorModal** — Solo para errores críticos de depuración. Nunca mostrar al usuario final. Usar toast nativo para mensajes al usuario.
+10. **Caché de Android** — Desinstalar e instalar la app es necesario para limpiar caché de JS/CSS después de subir cambios al servidor. El WebView de Android cachea los archivos estáticos agresivamente.
 
-## 13. Historial de Commits
+## 15. Historial de Commits
 
 | Hash | Mensaje | Fecha |
 |---|---|---|
 | `db8a347` | chore: initial scaffold with Vite + React 19 | 2026-07-06 |
 | `b25d42c` | docs: add project memory (MEMORIA.md) | 2026-07-06 |
+| `c6ce4e3` | feat: implement Login, Engine, Core components, WebView config, and project memory | 2026-07-11 |

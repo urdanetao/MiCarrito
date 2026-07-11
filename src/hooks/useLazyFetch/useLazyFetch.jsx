@@ -321,7 +321,6 @@ const useLazyFetch = () => {
 			}
 			if (!res.ok) {
 				const errMsg = jsonData.message || `Error HTTP: ${res.status}`;
-				setErrorModal({ open: true, message: errMsg });
 				throw new Error(errMsg);
 			}
 			const formattedResponse = {
@@ -330,11 +329,13 @@ const useLazyFetch = () => {
 				data: jsonData.data || [],
 			};
 			setResponse(formattedResponse);
-			if (formattedResponse.status === false && formattedResponse.message) {
-				setErrorModal({ open: true, message: formattedResponse.message });
-			}
 			if (formattedResponse.message) {
-				toast.showToast(formattedResponse.message, formattedResponse.status ? 'success' : 'warning');
+				if (typeof Android !== 'undefined' && Android.showToast) {
+					const duration = formattedResponse.status ? 2000 : 3500;
+					Android.showToast(formattedResponse.message, duration);
+				} else {
+					toast.showToast(formattedResponse.message, formattedResponse.status ? 'success' : 'warning');
+				}
 			}
 			return formattedResponse;
 		} catch (error) {
@@ -345,8 +346,11 @@ const useLazyFetch = () => {
 				data: {},
 			};
 			setResponse(errorResponse);
-			setErrorModal({ open: true, message: errorMessage });
-			toast.showToast(errorMessage, 'error');
+			if (typeof Android !== 'undefined' && Android.showToast) {
+				Android.showToast(errorMessage, 3500);
+			} else {
+				toast.showToast(errorMessage, 'error');
+			}
 			throw error;
 		} finally {
 			decrementGlobalPendingRequests();
