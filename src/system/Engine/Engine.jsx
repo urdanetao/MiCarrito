@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { getSessionData, setSessionData, setBackHandler, setRestoreHandler, clearBackHandler, isRunningInWebView } from "../../util/util";
+import { getSessionData, setSessionData, setBackHandler, setRestoreHandler, clearBackHandler, clearRestoreHandler, isRunningInWebView } from "../../util/util";
 import useLazyFetch from "../../hooks/useLazyFetch/useLazyFetch";
 import { MenuPrincipal, CoreConfirm, CoreButtonSquare } from "../../components";
 import { showConfirm } from "../../components/CoreConfirm/CoreConfirm";
@@ -58,12 +58,15 @@ const Engine = ({ setSession }) => {
     }, [selectedSection, handleLogout]);
 
     useEffect(() => {
-        setRestoreHandler(() => {
-            const st = window.history.state;
-            setSelectedSection(st && st.section ? st.section : null);
-        });
-        return () => clearBackHandler();
-    }, []);
+        if (selectedSection === null) {
+            setRestoreHandler(() => {
+                const st = window.history.state;
+                setSelectedSection(st && st.section ? st.section : null);
+            });
+        } else {
+            clearRestoreHandler();
+        }
+    }, [selectedSection]);
 
     const showBackButton = !isRunningInWebView() && selectedSection !== null;
 

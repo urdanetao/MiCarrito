@@ -8,7 +8,7 @@ import { COLOR_MAP } from '../../util/constants';
 import useLazyFetch from '../../hooks/useLazyFetch/useLazyFetch';
 import { CoreButtonSquare, CoreMenuPopup } from '../../components';
 import { showConfirm, isConfirmOpen, dismissConfirm } from '../../components/CoreConfirm/CoreConfirm';
-import { setBackHandler, setRestoreHandler, clearBackHandler, normalizeBool } from '../../util/util';
+import { setBackHandler, setRestoreHandler, clearBackHandler, clearRestoreHandler, normalizeBool } from '../../util/util';
 import ModalCompra from './ModalCompra';
 import ModalProducto from './ModalProducto';
 import ModalDuplicar from './ModalDuplicar';
@@ -559,12 +559,16 @@ const Compras = ({ onBack }) => {
                 handleBackFromDetail();
                 return;
             }
+            handleBackFromDetail();
             if (typeof onBack === 'function') {
                 onBack();
             }
         });
 
-        return () => clearBackHandler();
+        return () => {
+            clearBackHandler();
+            clearRestoreHandler();
+        };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const calcSubtotalCategoria = (catId) => {

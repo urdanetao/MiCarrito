@@ -12,8 +12,8 @@ const Configuracion = ({ onBack }) => {
     const [contraerCategorias, setContraerCategorias] = useState(false);
     const [loaded, setLoaded] = useState(false);
 
-    const contraerRef = useRef(false);
-    const savingRef = useRef(false);
+    const initializedRef = useRef(false);
+    const dirtyRef = useRef(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -22,23 +22,24 @@ const Configuracion = ({ onBack }) => {
                 const response = await fetchData('getConfig', {});
                 if (!cancelled && response?.status) {
                     setContraerCategorias(normalizeBool(response.data?.contraercategorias));
-                    contraerRef.current = normalizeBool(response.data?.contraercategorias);
                 }
             } catch {
                 // intentionally empty
             } finally {
-                if (!cancelled) setLoaded(true);
+                if (!cancelled) {
+                    initializedRef.current = true;
+                    setLoaded(true);
+                }
             }
         })();
         return () => { cancelled = true; };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
-        contraerRef.current = contraerCategorias;
-        if (!loaded || savingRef.current) {
-            savingRef.current = false;
+        if (!initializedRef.current || !dirtyRef.current) {
             return;
         }
+        dirtyRef.current = false;
         (async () => {
             try {
                 await fetchData('saveConfig', {
@@ -48,7 +49,7 @@ const Configuracion = ({ onBack }) => {
                 // intentionally empty
             }
         })();
-    }, [contraerCategorias, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [contraerCategorias]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         setBackHandler(() => {
@@ -103,7 +104,7 @@ const Configuracion = ({ onBack }) => {
                                 label="Contraer categorias"
                                 value={contraerCategorias ? '1' : '0'}
                                 onChange={(e) => {
-                                    contraerRef.current = e.target.value === '1';
+                                    dirtyRef.current = true;
                                     setContraerCategorias(e.target.value === '1');
                                 }}
                                 ignoreFormState={true}

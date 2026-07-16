@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { IoArrowBack, IoPencil, IoTrash, IoCashOutline, IoAdd, IoCheckmark } from 'react-icons/io5';
 import { COLOR_MAP, ENTRY_MODE } from '../../util/constants';
 import useLazyFetch from '../../hooks/useLazyFetch/useLazyFetch';
-import { CoreText, CoreButtonSquare, CoreModal, CoreVSep } from '../../components';
+import { CoreText, CoreButtonSquare, CoreModal, CoreVSep, CoreWindow, CoreGroup } from '../../components';
 import { showConfirm, isConfirmOpen, dismissConfirm } from '../../components/CoreConfirm/CoreConfirm';
 import { setBackHandler, clearBackHandler } from '../../util/util';
 
@@ -343,67 +343,20 @@ const Monedas = ({ onBack }) => {
                 <ErrorModal />
             </div>
 
-            <CoreModal
-                open={showModal}
-                onClose={handleCloseModal}
-                closeOnOverlayClick={false}
-                contentStyle={{ maxWidth: '400px', width: '100%' }}
-            >
-                {({ closeModal }) => {
-                    const modalHeaderStyles = {
-                        backgroundColor: MONEDA_COLOR,
-                        color: '#fff',
-                        fontSize: '16px',
-                        fontWeight: '600',
-                        padding: '12px 16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                    };
-
-                    const modalCloseBtnStyles = {
-                        background: 'none',
-                        border: 'none',
-                        color: '#fff',
-                        fontSize: '20px',
-                        cursor: 'pointer',
-                        padding: '4px',
-                        borderRadius: '4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'background-color 0.18s',
-                        outline: 'none',
-                    };
-
-                    const modalBodyStyles = {
-                        padding: '20px',
-                    };
-
-                    const modalFooterStyles = {
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'flex-end',
-                        gap: '5px',
-                        padding: '0 20px 20px',
-                    };
-
-                    return (
-                        <div style={{ borderRadius: '12px', border: `1px solid ${MONEDA_COLOR}40`, boxShadow: '0 18px 48px rgba(15, 23, 42, 0.24)', backgroundColor: '#fefefe', overflow: 'hidden' }}>
-                            <div style={modalHeaderStyles}>
-                                <span>{editId > 0 ? 'Editar Moneda' : 'Nueva Moneda'}</span>
-                                <button
-                                    type="button"
-                                    style={modalCloseBtnStyles}
-                                    onClick={() => closeModal()}
-                                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.2)'; }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; }}
-                                >
-                                    &#x2715;
-                                </button>
-                            </div>
-
-                            <div style={modalBodyStyles}>
+                <CoreModal
+                    open={showModal}
+                    onClose={handleCloseModal}
+                    closeOnOverlayClick={false}
+                    contentStyle={{ maxWidth: '400px', width: '100%' }}
+                >
+                    {({ closeModal }) => (
+                        <CoreWindow
+                            icon={<IoCashOutline size={20} color="#fff" />}
+                            title={editId > 0 ? 'Editar Moneda' : 'Nueva Moneda'}
+                            color={MONEDA_COLOR}
+                            width="100%"
+                        >
+                            <CoreGroup label="Datos de la moneda">
                                 <CoreText
                                     ref={siglasRef}
                                     label="Siglas"
@@ -415,7 +368,7 @@ const Monedas = ({ onBack }) => {
                                     width="100%"
                                     ignoreFormState={true}
                                 />
-                                <CoreVSep />
+                                <CoreVSep size={8} />
                                 <CoreText
                                     label="Nombre"
                                     value={nombre}
@@ -426,7 +379,7 @@ const Monedas = ({ onBack }) => {
                                     width="100%"
                                     ignoreFormState={true}
                                 />
-                                <CoreVSep />
+                                <CoreVSep size={8} />
                                 <CoreText
                                     label="Simbolo"
                                     value={simbolo}
@@ -437,9 +390,9 @@ const Monedas = ({ onBack }) => {
                                     width="100%"
                                     ignoreFormState={true}
                                 />
-                            </div>
+                            </CoreGroup>
 
-                            <div style={modalFooterStyles}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '5px', marginTop: '12px' }}>
                                 <CoreButtonSquare
                                     icon={<IoArrowBack size={18} />}
                                     color="#6b7280"
@@ -453,10 +406,9 @@ const Monedas = ({ onBack }) => {
                                     ignoreFormState={true}
                                 />
                             </div>
-                        </div>
-                    );
-                }}
-            </CoreModal>
+                        </CoreWindow>
+                    )}
+                </CoreModal>
         </>
     );
 };
