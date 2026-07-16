@@ -1,14 +1,15 @@
 
 import { useState } from 'react';
-import { IoSettingsOutline, IoGridOutline, IoCartOutline, IoLogOutOutline } from 'react-icons/io5';
+import { IoSettingsOutline, IoGridOutline, IoCartOutline, IoCashOutline, IoLogOutOutline } from 'react-icons/io5';
 import { showConfirm } from '../CoreConfirm/CoreConfirm';
 import micarritoLogo from '../../assets/micarrito_logo.png';
 
 const MENU_OPTIONS = [
-    { key: 'config', label: 'Configuracion', icon: <IoSettingsOutline size={28} />, color: '#1976d2' },
-    { key: 'categorias', label: 'Categorias', icon: <IoGridOutline size={28} />, color: '#388e3c' },
-    { key: 'compras', label: 'Compras', icon: <IoCartOutline size={28} />, color: '#f57c00' },
-    { key: 'logout', label: 'Cerrar Sesion', icon: <IoLogOutOutline size={28} />, color: '#d32f2f' },
+    { key: 'config', label: 'Configuracion', icon: <IoSettingsOutline size={24} />, color: '#1976d2' },
+    { key: 'monedas', label: 'Monedas', icon: <IoCashOutline size={24} />, color: '#f57c00' },
+    { key: 'categorias', label: 'Categorias', icon: <IoGridOutline size={24} />, color: '#388e3c' },
+    { key: 'compras', label: 'Compras', icon: <IoCartOutline size={24} />, color: '#7b1fa2' },
+    { key: 'logout', label: 'Cerrar Sesion', icon: <IoLogOutOutline size={24} />, color: '#d32f2f' },
 ];
 
 const MenuPrincipal = ({ onLogout, onSelect }) => {
@@ -51,8 +52,8 @@ const MenuPrincipal = ({ onLogout, onSelect }) => {
 
     const gridStyles = {
         display: 'grid',
-        gridTemplateColumns: 'repeat(2, 1fr)',
-        gap: '14px',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        gap: '10px',
         maxWidth: '360px',
         width: '100%',
     };
@@ -64,8 +65,8 @@ const MenuPrincipal = ({ onLogout, onSelect }) => {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '10px',
-            padding: '20px 12px',
+            gap: '6px',
+            padding: '14px 6px',
             border: 'none',
             borderRadius: '10px',
             background: isHovered ? '#ffffff' : 'linear-gradient(145deg, #f8faff, #eef4fd)',
@@ -86,9 +87,9 @@ const MenuPrincipal = ({ onLogout, onSelect }) => {
     const getIconContainerStyles = (key, color) => {
         const isHovered = hoveredKey === key;
         return {
-            width: '48px',
-            height: '48px',
-            borderRadius: '12px',
+            width: '40px',
+            height: '40px',
+            borderRadius: '10px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -98,7 +99,7 @@ const MenuPrincipal = ({ onLogout, onSelect }) => {
     };
 
     const getLabelStyles = (key, color) => ({
-        fontSize: '11px',
+        fontSize: '10px',
         fontWeight: '600',
         color: hoveredKey === key ? color : '#444',
         textAlign: 'center',

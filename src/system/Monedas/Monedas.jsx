@@ -1,33 +1,32 @@
 import { useState, useEffect, useRef } from 'react';
-import { IoArrowBack, IoPencil, IoTrash, IoPricetagOutline, IoAdd, IoCheckmark } from 'react-icons/io5';
+import { IoArrowBack, IoPencil, IoTrash, IoCashOutline, IoAdd, IoCheckmark } from 'react-icons/io5';
 import { COLOR_MAP, ENTRY_MODE } from '../../util/constants';
 import useLazyFetch from '../../hooks/useLazyFetch/useLazyFetch';
-import { CoreText, CoreButtonSquare, CoreModal } from '../../components';
+import { CoreText, CoreButtonSquare, CoreModal, CoreVSep } from '../../components';
 import { showConfirm, isConfirmOpen, dismissConfirm } from '../../components/CoreConfirm/CoreConfirm';
 import { setBackHandler, clearBackHandler } from '../../util/util';
 
-const CATEGORY_COLOR = '#388e3c';
+const MONEDA_COLOR = '#f57c00';
 
-const Categorias = ({ onBack }) => {
+const Monedas = ({ onBack }) => {
     const { fetchData, BackdropLoader, ErrorModal } = useLazyFetch();
 
-    const [categorias, setCategorias] = useState([]);
-    const [descripcion, setDescripcion] = useState('');
+    const [monedas, setMonedas] = useState([]);
+    const [siglas, setSiglas] = useState('');
+    const [nombre, setNombre] = useState('');
+    const [simbolo, setSimbolo] = useState('');
     const [editId, setEditId] = useState(0);
     const [showModal, setShowModal] = useState(false);
 
-    const descRef = useRef(null);
+    const siglasRef = useRef(null);
 
     useEffect(() => {
         let cancelled = false;
         (async () => {
             try {
-                const response = await fetchData('getCategorias', {});
+                const response = await fetchData('getMonedas', {});
                 if (!cancelled && response?.status && Array.isArray(response.data)) {
-                    const sorted = [...response.data].sort((a, b) =>
-                        (a.descrip || '').localeCompare(b.descrip || '', 'es', { sensitivity: 'base' })
-                    );
-                    setCategorias(sorted);
+                    setMonedas(response.data);
                 }
             } catch {
                 // intentionally empty
@@ -36,14 +35,11 @@ const Categorias = ({ onBack }) => {
         return () => { cancelled = true; };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const refreshCategorias = async () => {
+    const refreshMonedas = async () => {
         try {
-            const response = await fetchData('getCategorias', {});
+            const response = await fetchData('getMonedas', {});
             if (response?.status && Array.isArray(response.data)) {
-                const sorted = [...response.data].sort((a, b) =>
-                    (a.descrip || '').localeCompare(b.descrip || '', 'es', { sensitivity: 'base' })
-                );
-                setCategorias(sorted);
+                setMonedas(response.data);
             }
         } catch {
             // intentionally empty
@@ -51,66 +47,78 @@ const Categorias = ({ onBack }) => {
     };
 
     const handleOpenAdd = () => {
-        setDescripcion('');
+        setSiglas('');
+        setNombre('');
+        setSimbolo('');
         setEditId(0);
         setShowModal(true);
     };
 
-    const handleOpenEdit = (cat) => {
-        setDescripcion(cat.descrip || '');
-        setEditId(cat.id);
+    const handleOpenEdit = (mon) => {
+        setSiglas(mon.siglas || '');
+        setNombre(mon.nombre || '');
+        setSimbolo(mon.simbolo || '');
+        setEditId(mon.id);
         setShowModal(true);
     };
 
     const handleCloseModal = () => {
         setShowModal(false);
-        setDescripcion('');
+        setSiglas('');
+        setNombre('');
+        setSimbolo('');
         setEditId(0);
     };
 
     useEffect(() => {
-        if (showModal && descRef.current) {
+        if (showModal && siglasRef.current) {
             const timer = setTimeout(() => {
-                descRef.current?.focus();
+                siglasRef.current?.focus();
             }, 100);
             return () => clearTimeout(timer);
         }
     }, [showModal]);
 
     const handleSave = async () => {
-        const trimmed = descripcion.trim();
-        if (trimmed === '') {
+        const trimmedSiglas = siglas.trim();
+        const trimmedNombre = nombre.trim();
+        const trimmedSimbolo = simbolo.trim();
+        if (trimmedSiglas === '' || trimmedNombre === '' || trimmedSimbolo === '') {
             return;
         }
 
         try {
-            const response = await fetchData('saveCategoria', {
+            const response = await fetchData('saveMoneda', {
                 id: editId,
-                descrip: trimmed,
+                siglas: trimmedSiglas,
+                nombre: trimmedNombre,
+                simbolo: trimmedSimbolo,
             });
 
             if (response?.status) {
                 setShowModal(false);
-                setDescripcion('');
+                setSiglas('');
+                setNombre('');
+                setSimbolo('');
                 setEditId(0);
-                await refreshCategorias();
+                await refreshMonedas();
             }
         } catch {
             // intentionally empty
         }
     };
 
-    const handleDelete = (cat) => {
+    const handleDelete = (mon) => {
         showConfirm({
-            text: `¿Está seguro que desea eliminar la categoría "${cat.descrip}"?`,
+            text: `Desea eliminar la moneda "${mon.nombre}"?`,
             okLabel: 'Eliminar',
             cancelLabel: 'Cancelar',
             color: COLOR_MAP.error,
             okAction: async () => {
                 try {
-                    const response = await fetchData('deleteCategoria', { id: cat.id });
+                    const response = await fetchData('deleteMoneda', { id: mon.id });
                     if (response?.status) {
-                        await refreshCategorias();
+                        await refreshMonedas();
                     }
                 } catch {
                     // intentionally empty
@@ -191,7 +199,7 @@ const Categorias = ({ onBack }) => {
         padding: '12px 14px',
         borderRadius: '10px',
         border: '1px solid #e2e8f0',
-        borderLeft: `4px solid ${CATEGORY_COLOR}`,
+        borderLeft: `4px solid ${MONEDA_COLOR}`,
         backgroundColor: '#fff',
         boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
         transition: 'all 0.2s ease',
@@ -205,8 +213,8 @@ const Categorias = ({ onBack }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'rgba(56, 142, 60, 0.1)',
-        color: CATEGORY_COLOR,
+        backgroundColor: 'rgba(245, 124, 0, 0.1)',
+        color: MONEDA_COLOR,
         flexShrink: 0,
         fontSize: '16px',
     };
@@ -220,6 +228,23 @@ const Categorias = ({ onBack }) => {
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
         minWidth: 0,
+    };
+
+    const siglasBadgeStyles = {
+        fontSize: '11px',
+        fontWeight: '700',
+        color: MONEDA_COLOR,
+        backgroundColor: `${MONEDA_COLOR}15`,
+        padding: '2px 6px',
+        borderRadius: '4px',
+        flexShrink: 0,
+    };
+
+    const simboloStyles = {
+        fontSize: '13px',
+        fontWeight: '600',
+        color: '#1e293b',
+        flexShrink: 0,
     };
 
     const emptyContainerStyles = {
@@ -255,28 +280,28 @@ const Categorias = ({ onBack }) => {
         <>
             <div style={containerStyles}>
                 <div style={headerStyles}>
-                    <h2 style={titleStyles}>Categorías</h2>
+                    <h2 style={titleStyles}>Monedas</h2>
                     <CoreButtonSquare
                         icon={<IoAdd size={18} />}
-                        color={CATEGORY_COLOR}
+                        color={MONEDA_COLOR}
                         onClick={handleOpenAdd}
                         ignoreFormState={true}
                     />
                 </div>
 
                 <div style={listContainerStyles}>
-                    {categorias.length === 0 ? (
+                    {monedas.length === 0 ? (
                         <div style={emptyContainerStyles}>
                             <div style={emptyIconStyles}>
-                                <IoPricetagOutline size={48} />
+                                <IoCashOutline size={48} />
                             </div>
-                            <div style={emptyTextStyles}>No hay categorías registradas</div>
+                            <div style={emptyTextStyles}>No hay monedas registradas</div>
                             <div style={emptySubtextStyles}>Presiona + para agregar la primera</div>
                         </div>
                     ) : (
-                        categorias.map((cat) => (
+                        monedas.map((mon) => (
                             <div
-                                key={cat.id}
+                                key={mon.id}
                                 style={cardStyles}
                                 onMouseEnter={(e) => {
                                     e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
@@ -288,22 +313,24 @@ const Categorias = ({ onBack }) => {
                                 }}
                             >
                                 <div style={iconContainerStyles}>
-                                    <IoPricetagOutline size={16} />
+                                    <IoCashOutline size={16} />
                                 </div>
-                                <div style={descriptionStyles} title={cat.descrip}>
-                                    {cat.descrip}
+                                <div style={siglasBadgeStyles}>{mon.siglas}</div>
+                                <div style={descriptionStyles} title={mon.nombre}>
+                                    {mon.nombre}
                                 </div>
+                                <div style={simboloStyles}>{mon.simbolo}</div>
                                 <CoreButtonSquare
                                     icon={<IoPencil size={14} />}
                                     color={COLOR_MAP.info}
-                                    onClick={() => handleOpenEdit(cat)}
+                                    onClick={() => handleOpenEdit(mon)}
                                     ignoreFormState={true}
                                     style={{ width: '30px', height: '30px', fontSize: '14px' }}
                                 />
                                 <CoreButtonSquare
                                     icon={<IoTrash size={14} />}
                                     color={COLOR_MAP.error}
-                                    onClick={() => handleDelete(cat)}
+                                    onClick={() => handleDelete(mon)}
                                     ignoreFormState={true}
                                     style={{ width: '30px', height: '30px', fontSize: '14px' }}
                                 />
@@ -324,7 +351,7 @@ const Categorias = ({ onBack }) => {
             >
                 {({ closeModal }) => {
                     const modalHeaderStyles = {
-                        backgroundColor: CATEGORY_COLOR,
+                        backgroundColor: MONEDA_COLOR,
                         color: '#fff',
                         fontSize: '16px',
                         fontWeight: '600',
@@ -357,14 +384,14 @@ const Categorias = ({ onBack }) => {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'flex-end',
-        gap: '5px',
+                        gap: '5px',
                         padding: '0 20px 20px',
                     };
 
                     return (
-                        <div style={{ borderRadius: '12px', border: `1px solid ${CATEGORY_COLOR}40`, boxShadow: '0 18px 48px rgba(15, 23, 42, 0.24)', backgroundColor: '#fefefe', overflow: 'hidden' }}>
+                        <div style={{ borderRadius: '12px', border: `1px solid ${MONEDA_COLOR}40`, boxShadow: '0 18px 48px rgba(15, 23, 42, 0.24)', backgroundColor: '#fefefe', overflow: 'hidden' }}>
                             <div style={modalHeaderStyles}>
-                                <span>{editId > 0 ? 'Editar Categoría' : 'Nueva Categoría'}</span>
+                                <span>{editId > 0 ? 'Editar Moneda' : 'Nueva Moneda'}</span>
                                 <button
                                     type="button"
                                     style={modalCloseBtnStyles}
@@ -378,13 +405,35 @@ const Categorias = ({ onBack }) => {
 
                             <div style={modalBodyStyles}>
                                 <CoreText
-                                    ref={descRef}
-                                    label="Descripción"
-                                    value={descripcion}
-                                    onChange={(e) => setDescripcion(e.target.value)}
+                                    ref={siglasRef}
+                                    label="Siglas"
+                                    value={siglas}
+                                    onChange={(e) => setSiglas(e.target.value)}
                                     onKeyDown={handleKeyDown}
                                     entryMode={ENTRY_MODE.UPPER}
-                                    maxLength={30}
+                                    maxLength={3}
+                                    width="100%"
+                                    ignoreFormState={true}
+                                />
+                                <CoreVSep />
+                                <CoreText
+                                    label="Nombre"
+                                    value={nombre}
+                                    onChange={(e) => setNombre(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    entryMode={ENTRY_MODE.UPPER}
+                                    maxLength={20}
+                                    width="100%"
+                                    ignoreFormState={true}
+                                />
+                                <CoreVSep />
+                                <CoreText
+                                    label="Simbolo"
+                                    value={simbolo}
+                                    onChange={(e) => setSimbolo(e.target.value)}
+                                    onKeyDown={handleKeyDown}
+                                    entryMode={ENTRY_MODE.NORMAL}
+                                    maxLength={3}
                                     width="100%"
                                     ignoreFormState={true}
                                 />
@@ -399,7 +448,7 @@ const Categorias = ({ onBack }) => {
                                 />
                                 <CoreButtonSquare
                                     icon={<IoCheckmark size={18} />}
-                                    color={CATEGORY_COLOR}
+                                    color={MONEDA_COLOR}
                                     onClick={handleSave}
                                     ignoreFormState={true}
                                 />
@@ -412,4 +461,4 @@ const Categorias = ({ onBack }) => {
     );
 };
 
-export default Categorias;
+export default Monedas;

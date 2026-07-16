@@ -5,7 +5,7 @@ import { ENTRY_MODE, COLOR_MAP } from "../../util/constants";
 import { CoreWindow, CoreGroup, CoreText, CorePassword, CoreVSep, CoreButton } from "../../components";
 import useLazyFetch from "../../hooks/useLazyFetch/useLazyFetch";
 import micarritoLogo from "../../assets/micarrito_logo.png";
-import { setSessionData } from '../../util/util';
+import { setSessionData, setBackHandler, clearBackHandler, isRunningInWebView } from '../../util/util';
 
 const Login = ({ setSession }) => {
     const { fetchData, BackdropLoader, ErrorModal } = useLazyFetch();
@@ -19,6 +19,15 @@ const Login = ({ setSession }) => {
 
     useEffect(() => {
         nicknameRef.current?.focus();
+    }, []);
+
+    useEffect(() => {
+        setBackHandler(() => {
+            if (isRunningInWebView() && typeof Android !== 'undefined') {
+                Android.onBackPressed();
+            }
+        });
+        return () => clearBackHandler();
     }, []);
 
     const loginMainContainerStyles = {
