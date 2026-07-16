@@ -1,5 +1,5 @@
-import { IoCartOutline, IoCopy } from 'react-icons/io5';
-import { CoreModal, CoreWindow, CoreGroup } from '../../components';
+import { IoCartOutline, IoCopy, IoClose } from 'react-icons/io5';
+import { CoreModal, CoreWindow, CoreGroup, CoreButtonSquare } from '../../components';
 
 const COMPRA_COLOR = '#7b1fa2';
 
@@ -8,10 +8,10 @@ const ModalCopiar = ({ open, onClose, comprasCopiar, onCopiar }) => {
         <CoreModal
             open={open}
             onClose={onClose}
-            closeOnOverlayClick={false}
+            closeOnOverlayClick={true}
             contentStyle={{ maxWidth: '400px', width: '100%' }}
         >
-            {() => (
+            {({ closeModal }) => (
                 <CoreWindow
                     icon={<IoCopy size={20} color="#fff" />}
                     title="Copiar Categoria"
@@ -39,6 +39,15 @@ const ModalCopiar = ({ open, onClose, comprasCopiar, onCopiar }) => {
                             </div>
                         )}
                     </CoreGroup>
+
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '5px', marginTop: '12px' }}>
+                        <CoreButtonSquare
+                            icon={<IoClose size={18} />}
+                            color="#6b7280"
+                            onClick={() => closeModal()}
+                            ignoreFormState={true}
+                        />
+                    </div>
                 </CoreWindow>
             )}
         </CoreModal>

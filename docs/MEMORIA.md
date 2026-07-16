@@ -190,7 +190,7 @@ VITE_API_URL=php/api.php
   - Footer: dos `CoreButtonSquare` con `ignoreFormState` (volver + guardar)
   - Input: `CoreText` con `entryMode=UPPER`, `maxLength=30`, `ignoreFormState`
   - Foco automático al abrir (delay 100ms para timing del dialog)
-- Eliminar con `CoreConfirm` de confirmación
+- Eliminar con `CoreConfirm` de confirmación. El backend valida que la categoría no esté referenciada en `productos.categoria_id` (≥1 producto → error "No se puede eliminar: la categoría está en uso en al menos un producto"); el mensaje se muestra vía toast nativo
 - API acciones: `getCategorias`, `saveCategoria`, `deleteCategoria`
 - Botón atrás del teléfono manejado vía `setBackHandler()` + `backHandlerRegistry`
   - Si CoreConfirm abierto → dismissConfirm
@@ -233,7 +233,7 @@ VITE_API_URL=php/api.php
 - Fields: Fecha + Descripción. Backend copia categorías + productos con `comprado=0` siempre
 
 ### Modal Copiar Categoría (`CoreModal`)
-- Listado de compras destino para copiar la categoría seleccionada
+- Listado de compras destino para copiar la categoría seleccionada. Tiene botón Cancelar (`IoClose`) y `closeOnOverlayClick={true}` (cerrar tocando fuera)
 
 ### Navegación
 - Botón atrás del teléfono/navegador: cerrar modal → colapsar categoría → volver a lista → volver al menú
@@ -256,7 +256,7 @@ VITE_API_URL=php/api.php
 - Tarjetas: borde izquierdo `4px solid #f57c00`, icono `IoCashOutline`, badge de siglas, nombre (13px/600), símbolo
 - Modal crear/editar (`CoreModal` que contiene `CoreWindow`): `CoreWindow` icono `IoCashOutline` + título "Nueva Moneda"/"Editar Moneda" color naranja; controles envueltos en `CoreGroup` "Datos de la moneda": Siglas (`CoreText`, maxLength 3, UPPER), Nombre (`CoreText`, maxLength 20, UPPER), Símbolo (`CoreText`, maxLength 3, NORMAL), separados por `CoreVSep size={8}`
 - Footer del `CoreWindow`: `CoreButtonSquare` volver (gris) + guardar (naranja)
-- Eliminar con `CoreConfirm`: no se puede si está en uso en al menos una compra
+- Eliminar con `CoreConfirm`: el backend valida que la moneda no esté en uso en `compras.idmon` (≥1 compra → error "No se puede eliminar: la moneda esta en uso en al menos una compra"); el mensaje se muestra vía toast nativo
 - API acciones: `getMonedas`, `saveMoneda`, `deleteMoneda`
 - Botón atrás: vuelve al menú principal
 
@@ -374,6 +374,8 @@ Android:
 | 23 | Configuración: guardado automático al cambiar el `CoreToggle` (sin botón Guardar ni botón Atrás en header). Icono `IoSettingsOutline` antes del título. Usa `initializedRef` + `dirtyRef` para NO disparar `saveConfig` en la carga inicial | 2026-07-16 |
 | 24 | Compras: animación de expandir/contraer categorías con CSS Grid (`grid-template-rows: 0fr ↔ 1fr` + `overflow:hidden`), reemplazando el `max-height` fijo que se veía poco suave | 2026-07-16 |
 | 25 | Monedas: formulario agregar/editar usa `CoreWindow` (icono `IoCashOutline`, color naranja) con los `CoreText` envueltos en `CoreGroup` "Datos de la moneda", dentro de `CoreModal` | 2026-07-16 |
+| 26 | Backend `deleteCategoria` valida que la categoría no esté en uso en `productos.categoria_id` (≥1 → error). `deleteMoneda` ya validaba contra `compras.idmon`. El frontend muestra el mensaje de error vía toast nativo (sin cambios en JSX) | 2026-07-16 |
+| 27 | `ModalCopiar` (copiar categoría a otra compra) ahora tiene botón Cancelar (`IoClose`) y `closeOnOverlayClick={true}` para cerrar tocando fuera | 2026-07-16 |
 
 ## 15. Notas del Usuario
 
@@ -425,3 +427,5 @@ Android:
 | `c6ce4e3` | feat: implement Login, Engine, Core components, WebView config, and project memory | 2026-07-11 |
 | `e606846` | fix: Reducir ErrorModal a errores criticos y usar toast nativo para mensajes al usuario | 2026-07-11 |
 | `cb8a11c` | fix: Correccion navegacion back (limpieza de restore), guardado automatico Configuracion (sin guardar en carga) y CoreWindow en Monedas | 2026-07-16 |
+| `9ea6408` | docs: actualizar MEMORIA con Configuracion, animacion categorias, fix back y CoreWindow Monedas | 2026-07-16 |
+| `f1b3c2d` | fix: validar eliminacion de categorias (productos) y monedas (compras) en backend + boton cancelar en ModalCopiar | 2026-07-16 |
