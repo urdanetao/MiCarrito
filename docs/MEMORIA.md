@@ -251,13 +251,26 @@ VITE_API_URL=php/api.php
 
 ## 10b. Módulo Monedas
 
-- Pantalla CRUD con fondo `#f8fafc`, color naranja (`#e65100`)
+- Pantalla CRUD con fondo `#f8fafc`, color naranja (`#f57c00`)
 - Header fijo: título "Monedas" + botón `CoreButtonSquare` "+"
-- Tarjetas: símbolo + nombre (siglas), layout horizontal
-- Modal crear/editar (`CoreModal`): Siglas (`CoreText`, maxLength 3), Nombre (`CoreText`, maxLength 20), Símbolo (`CoreText`, maxLength 3), separadores `CoreVSep`
+- Tarjetas: borde izquierdo `4px solid #f57c00`, icono `IoCashOutline`, badge de siglas, nombre (13px/600), símbolo
+- Modal crear/editar (`CoreModal` que contiene `CoreWindow`): `CoreWindow` icono `IoCashOutline` + título "Nueva Moneda"/"Editar Moneda" color naranja; controles envueltos en `CoreGroup` "Datos de la moneda": Siglas (`CoreText`, maxLength 3, UPPER), Nombre (`CoreText`, maxLength 20, UPPER), Símbolo (`CoreText`, maxLength 3, NORMAL), separados por `CoreVSep size={8}`
+- Footer del `CoreWindow`: `CoreButtonSquare` volver (gris) + guardar (naranja)
 - Eliminar con `CoreConfirm`: no se puede si está en uso en al menos una compra
 - API acciones: `getMonedas`, `saveMoneda`, `deleteMoneda`
 - Botón atrás: vuelve al menú principal
+
+## 10c. Módulo Configuración
+
+- Pantalla con `CoreWindow` "Preferencias" (icono `IoSettingsOutline`, color `#1976d2`)
+- Header: icono `IoSettingsOutline` + título "Configuracion" (NO hay botón Atrás en el header)
+- `CoreGroup` "Compras" con un `CoreToggle` "Contraer categorias"
+  - `value` = `'1'`/`'0'`. `onChange` marca `dirtyRef` y actualiza estado
+  - Texto explicativo debajo: "Las categorias se muestran contraidas/desplegadas al abrir una compra."
+- **Guardado automático**: al cambiar el toggle se llama `saveConfig` inmediatamente. NO hay botón Guardar ni botón Atrás en esta pantalla
+- **Carga inicial NO guarda**: usa `initializedRef` (true tras `getConfig`) + `dirtyRef` (true solo en cambio manual del usuario). El `useEffect` de guardado solo ejecuta `saveConfig` si ambos son true
+- Back handler: `setBackHandler` llama a `onBack` (vuelve al menú). El botón Atrás físico/del navegador funciona vía `popstate`
+- API acciones: `getConfig`, `saveConfig`
 
 ## 11. API — CORS
 
@@ -356,6 +369,11 @@ Android:
 | 18 | `backHandlerRegistry` separa `handler` (back de confirm/modales) de `restore` (restore de navegación desde `history.state`). `setBackHandler` / `setRestoreHandler` / `clearBackHandler` (solo limpia handler) | 2026-07-16 |
 | 19 | Navegación dirigida 100% por `history.state`: botón/tecla física y `popstate` SOLO hacen `window.history.back()`. El `popstate` centralizado llama `restore()` que lee `history.state` y deriva el estado de React. Un `back` = subir un nivel exacto | 2026-07-16 |
 | 20 | `handleOpenDetail` hace `pushState({section:'compras', compraDetail:true})` (state combinado). El `restore` de Compras: si `compraDetail` → queda en detalle; si `section==='compras'` sin `compraDetail` → `handleBackFromDetail()` (lista); si no hay section → `onBack()` (menú) | 2026-07-16 |
+| 21 | `clearRestoreHandler` (alias de `clearBackHandler`) limpia el `restore` al desmontar cada módulo. Sin esto, el `restore` de un módulo muerto "come" pulsaciones de Atrás (había que pulsar 2-3 veces) | 2026-07-16 |
+| 22 | El `restore` del Engine se re-registra cuando `selectedSection === null` y se limpia al entrar a una subpantalla, para que no compita con el `restore` de la subpantalla | 2026-07-16 |
+| 23 | Configuración: guardado automático al cambiar el `CoreToggle` (sin botón Guardar ni botón Atrás en header). Icono `IoSettingsOutline` antes del título. Usa `initializedRef` + `dirtyRef` para NO disparar `saveConfig` en la carga inicial | 2026-07-16 |
+| 24 | Compras: animación de expandir/contraer categorías con CSS Grid (`grid-template-rows: 0fr ↔ 1fr` + `overflow:hidden`), reemplazando el `max-height` fijo que se veía poco suave | 2026-07-16 |
+| 25 | Monedas: formulario agregar/editar usa `CoreWindow` (icono `IoCashOutline`, color naranja) con los `CoreText` envueltos en `CoreGroup` "Datos de la moneda", dentro de `CoreModal` | 2026-07-16 |
 
 ## 15. Notas del Usuario
 
@@ -396,7 +414,7 @@ Android:
 
 | # | Descripción | Estado | Notas |
 |---|---|---|---|
-| 1 | **Botón Atrás del navegador desde ficha de compra va al menú en vez de la lista** | RESUELTO (2ª iteración) | Reestructuración completa de la navegación basada 100% en `history.state`. Causa raíz: el `backHandlerRegistry` singleton híbrido (mutaba estado Y a veces hacía `history.back()`) desincronizaba el estado de React del historial del navegador, saltando niveles. Solución: separar en dos handlers — `setBackHandler` (para confirm/modales, consume el back) y `setRestoreHandler` (restaura estado leyendo `history.state`). El botón/tecla física y el `popstate` SOLO delegan a `window.history.back()`. El `popstate` centralizado en `main.jsx` llama `backHandlerRegistry.restore()` que deriva `selectedSection`/`selectedCompra` desde `history.state`. `handleOpenDetail` hace `pushState({section:'compras', compraDetail:true})`. Un solo `back` = subir exactamente un nivel. |
+| 1 | **Botón Atrás del navegador desde ficha de compra va al menú en vez de la lista** | RESUELTO (3ª iteración) | Reestructuración completa basada 100% en `history.state` (ver decisión 19/20). 3ª iteración corrige: (a) los módulos no limpiaban el `restore` al desmontar (`clearRestoreHandler` faltante en cleanup), dejando handlers muertos que "comían" pulsaciones → había que pulsar 2-3 veces; (b) el `restore` de Compras hacía `return` sin limpiar `selectedCompra` cuando `compraDetail` era true, desincronizando React del history; (c) el `restore` del Engine no se re-registraba al volver al menú. Ahora cleanup hace `clearBackHandler()` + `clearRestoreHandler()` y el `restore` de Compras siempre limpia `selectedCompra` antes de delegar a `onBack`. |
 
 ## 19. Historial de Commits
 
@@ -406,3 +424,4 @@ Android:
 | `b25d42c` | docs: add project memory (MEMORIA.md) | 2026-07-06 |
 | `c6ce4e3` | feat: implement Login, Engine, Core components, WebView config, and project memory | 2026-07-11 |
 | `e606846` | fix: Reducir ErrorModal a errores criticos y usar toast nativo para mensajes al usuario | 2026-07-11 |
+| `cb8a11c` | fix: Correccion navegacion back (limpieza de restore), guardado automatico Configuracion (sin guardar en carga) y CoreWindow en Monedas | 2026-07-16 |
