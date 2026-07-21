@@ -1,8 +1,7 @@
-
 import { useEffect, useRef, useState } from "react";
 import { LuLogIn, LuFingerprint } from "react-icons/lu";
 import { ENTRY_MODE, COLOR_MAP } from "../../util/constants";
-import { CoreWindow, CoreGroup, CoreText, CorePassword, CoreVSep, CoreButton } from "../../components";
+import { CoreWindow, CoreGroup, CoreText, CorePassword, CoreVSep, CoreButton, CoreToggle } from "../../components";
 import useLazyFetch from "../../hooks/useLazyFetch/useLazyFetch";
 import micarritoLogo from "../../assets/micarrito_logo.png";
 import { setSessionData, setBackHandler, clearBackHandler, isRunningInWebView } from '../../util/util';
@@ -14,7 +13,9 @@ const Login = ({ setSession }) => {
         nickname: "",
         pwd: "",
     });
-    const [bioAvailable, setBioAvailable] = useState(false);
+    const [hwAvailable, setHwAvailable] = useState(false);
+    const [bioRegistered, setBioRegistered] = useState(false);
+    const [bioToggleEnabled, setBioToggleEnabled] = useState(false);
 
     const nicknameRef = useRef(null);
 
@@ -23,15 +24,16 @@ const Login = ({ setSession }) => {
     }, []);
 
     useEffect(() => {
-        if (isRunningInWebView() && typeof Android !== 'undefined' && typeof Android.isBiometricAvailable === 'function') {
+        if (isRunningInWebView() && typeof Android !== 'undefined') {
             try {
                 if (typeof Android.getBiometricDiag === 'function') {
                     console.log('[Biometric Diag]', Android.getBiometricDiag());
                 }
-                const available = Android.isBiometricAvailable();
-                console.log('[Biometric] isBiometricAvailable:', available);
-                if (available) {
-                    setBioAvailable(true); // eslint-disable-line react-hooks/set-state-in-effect
+                if (typeof Android.hasBiometricHardware === 'function') {
+                    setHwAvailable(Android.hasBiometricHardware()); // eslint-disable-line react-hooks/set-state-in-effect
+                }
+                if (typeof Android.isBiometricAvailable === 'function') {
+                    setBioRegistered(Android.isBiometricAvailable());
                 }
             } catch (e) {
                 console.log('[Biometric] check error:', e);
@@ -66,6 +68,8 @@ const Login = ({ setSession }) => {
 
     const logoStyles = {
         height: "120px",
+        borderRadius: "12px",
+        boxShadow: "0 4px 15px rgba(25, 118, 210, 0.4)",
     };
 
     const handleLogin = async () => {
@@ -89,7 +93,8 @@ const Login = ({ setSession }) => {
             setSession(newSessionData);
 
             if (
-                isRunningInWebView()
+                bioToggleEnabled
+                && isRunningInWebView()
                 && typeof Android !== 'undefined'
                 && typeof Android.enableBiometric === 'function'
                 && !Android.isBiometricAvailable()
@@ -100,6 +105,9 @@ const Login = ({ setSession }) => {
             // intentionally empty
         }
     }
+
+    const showToggle = hwAvailable && !bioRegistered;
+    const showBiometricButton = bioRegistered;
 
     return (
         <>
@@ -133,6 +141,17 @@ const Login = ({ setSession }) => {
                             ignoreFormState={true}
                             width={"100%"}
                         />
+                        {showToggle && (
+                            <>
+                                <CoreVSep size={12} />
+                                <CoreToggle
+                                    label="Activar identificación biométrica"
+                                    value={bioToggleEnabled ? '1' : '0'}
+                                    onChange={(e) => setBioToggleEnabled(e.target.value === '1')}
+                                    ignoreFormState={true}
+                                />
+                            </>
+                        )}
                         <CoreVSep size={20} />
                         <CoreButton
                             label="Iniciar Sesión"
@@ -142,7 +161,7 @@ const Login = ({ setSession }) => {
                             onClick={handleLogin}
                             ignoreFormState={true}
                         />
-                        {bioAvailable && (
+                        {showBiometricButton && (
                             <>
                                 <CoreVSep size={12} />
                                 <CoreButton

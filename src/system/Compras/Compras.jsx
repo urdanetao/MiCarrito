@@ -40,6 +40,7 @@ const Compras = ({ onBack }) => {
 
     const [menuCompraId, setMenuCompraId] = useState(null);
     const [menuCategoriaData, setMenuCategoriaData] = useState(null);
+    const [menuFiltroVisible, setMenuFiltroVisible] = useState(false);
 
     const [showModalProducto, setShowModalProducto] = useState(false);
     const [productoEditId, setProductoEditId] = useState(0);
@@ -59,6 +60,7 @@ const Compras = ({ onBack }) => {
     const [copiarData, setCopiarData] = useState(null);
 
     const [busqueda, setBusqueda] = useState('');
+    const [filtroDetalle, setFiltroDetalle] = useState('pendientes');
 
     const refreshCompras = useCallback(async () => {
         try {
@@ -812,11 +814,12 @@ const Compras = ({ onBack }) => {
 
     const searchBarStyles = {
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-end',
         padding: '6px 16px',
         backgroundColor: '#fff',
         borderBottom: '1px solid #e2e8f0',
         flexShrink: 0,
+        gap: '10px',
     };
 
     if (selectedCompra) {
@@ -824,15 +827,28 @@ const Compras = ({ onBack }) => {
 
         const normalizeText = (s) => (s == null ? '' : String(s)).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
         const term = normalizeText(busqueda);
+
+        const applyProductoFilter = (prods) => {
+            if (filtroDetalle === 'comprados') return prods.filter((p) => normalizeBool(p.comprado));
+            if (filtroDetalle === 'pendientes') return prods.filter((p) => !normalizeBool(p.comprado));
+            return prods;
+        };
+
         const categoriasFiltradas = term === ''
-            ? categoriasCompra.map((cat) => ({ cat, prods: productosPorCategoria[Number(cat.id)] || [] }))
+            ? categoriasCompra
+                .map((cat) => {
+                    const allProds = productosPorCategoria[Number(cat.id)] || [];
+                    const prods = applyProductoFilter(allProds);
+                    return prods.length > 0 ? { cat, prods } : null;
+                })
+                .filter(Boolean)
             : categoriasCompra
                 .map((cat) => {
-                    const prods = productosPorCategoria[Number(cat.id)] || [];
-                    const prodsFiltrados = prods.filter((p) => normalizeText(p.nombre).includes(term));
+                    const allProds = productosPorCategoria[Number(cat.id)] || [];
+                    const prodsFiltrados = applyProductoFilter(allProds).filter((p) => normalizeText(p.nombre).includes(term));
                     const coincideCat = normalizeText(cat.descrip).includes(term);
                     if (!coincideCat && prodsFiltrados.length === 0) return null;
-                    return { cat, prods: coincideCat ? prods : prodsFiltrados };
+                    return { cat, prods: coincideCat ? applyProductoFilter(allProds) : prodsFiltrados };
                 })
                 .filter(Boolean);
 
@@ -854,8 +870,15 @@ const Compras = ({ onBack }) => {
                             onChange={(e) => setBusqueda(e.target.value)}
                             entryMode={ENTRY_MODE.UPPER}
                             width="100%"
+                            wrapperStyle={{ flex: '1 1 auto', minWidth: 0 }}
                             ignoreFormState={true}
                         />
+                        <div
+                            style={{ width: '34px', height: '34px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: `${PRODUCTO_COLOR}19`, color: PRODUCTO_COLOR, flexShrink: 0, fontSize: '16px', cursor: 'pointer' }}
+                            onClick={() => setMenuFiltroVisible(true)}
+                        >
+                            <IoFilter size={16} />
+                        </div>
                     </div>
 
                     <div style={listContainerStyles}>
@@ -922,13 +945,12 @@ const Compras = ({ onBack }) => {
                                                             ${parseFloat(prod.precio).toFixed(2)}
                                                         </div>
                                                         <div style={{ flexShrink: 0, display: 'flex', gap: '2px' }} onClick={(e) => e.stopPropagation()}>
-                                                            <CoreButtonSquare
-                                                                icon={<IoTrash size={10} />}
-                                                                color={COLOR_MAP.error}
+                                                            <div
+                                                                style={{ width: '22px', height: '22px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(244, 67, 54, 0.1)', color: COLOR_MAP.error, flexShrink: 0, fontSize: '12px', cursor: 'pointer' }}
                                                                 onClick={() => handleDeleteProducto(prod)}
-                                                                ignoreFormState={true}
-                                                                style={{ width: '22px', height: '22px' }}
-                                                            />
+                                                            >
+                                                                <IoTrash size={12} />
+                                                            </div>
                                                         </div>
                                                     </div>
                                             ))}
@@ -996,6 +1018,17 @@ const Compras = ({ onBack }) => {
                         { icon: <IoCopy />, label: 'Copiar Categoria', onClick: () => handleOpenCopiarCategoria(menuCategoriaData.compraId, menuCategoriaData.catId) },
                         { icon: <IoTrash />, label: 'Eliminar Categoria', color: COLOR_MAP.error, onClick: () => handleDeleteCategoriaDeCompra(menuCategoriaData.compraId, menuCategoriaData.cat) },
                     ] : []}
+                />
+
+                <CoreMenuPopup
+                    open={menuFiltroVisible}
+                    onClose={() => setMenuFiltroVisible(false)}
+                    items={[
+                        { icon: <IoFilter />, label: 'Mostrar todo', onClick: () => setFiltroDetalle('todos') },
+                        { icon: <IoTimeOutline />, label: 'Solo pendientes', onClick: () => setFiltroDetalle('pendientes') },
+                        { icon: <IoCheckmarkCircle />, label: 'Solo comprados', onClick: () => setFiltroDetalle('comprados') },
+                        { label: 'Cancelar', color: COLOR_MAP.error, onClick: () => {} },
+                    ]}
                 />
 
                 <ModalProducto

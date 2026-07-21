@@ -293,20 +293,18 @@ const Categorias = () => {
                                 <div style={descriptionStyles} title={cat.descrip}>
                                     {cat.descrip}
                                 </div>
-                                <CoreButtonSquare
-                                    icon={<IoPencil size={14} />}
-                                    color={COLOR_MAP.info}
+                                <div
+                                    style={{ width: '34px', height: '34px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(25, 118, 210, 0.1)', color: COLOR_MAP.info, flexShrink: 0, fontSize: '16px', cursor: 'pointer' }}
                                     onClick={() => handleOpenEdit(cat)}
-                                    ignoreFormState={true}
-                                    style={{ width: '30px', height: '30px', fontSize: '14px' }}
-                                />
-                                <CoreButtonSquare
-                                    icon={<IoTrash size={14} />}
-                                    color={COLOR_MAP.error}
+                                >
+                                    <IoPencil size={16} />
+                                </div>
+                                <div
+                                    style={{ width: '34px', height: '34px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(244, 67, 54, 0.1)', color: COLOR_MAP.error, flexShrink: 0, fontSize: '16px', cursor: 'pointer' }}
                                     onClick={() => handleDelete(cat)}
-                                    ignoreFormState={true}
-                                    style={{ width: '30px', height: '30px', fontSize: '14px' }}
-                                />
+                                >
+                                    <IoTrash size={16} />
+                                </div>
                             </div>
                         ))
                     )}

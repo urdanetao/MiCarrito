@@ -48,6 +48,8 @@ const MenuPrincipal = ({ onLogout, onSelect }) => {
         height: '90px',
         marginBottom: '24px',
         userSelect: 'none',
+        borderRadius: '12px',
+        boxShadow: '0 4px 15px rgba(25, 118, 210, 0.4)',
     };
 
     const gridStyles = {

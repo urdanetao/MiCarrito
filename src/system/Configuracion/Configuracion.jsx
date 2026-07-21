@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { IoSettingsOutline, IoKeyOutline, IoPersonAdd } from 'react-icons/io5';
+import { LuFingerprint } from 'react-icons/lu';
 import useLazyFetch from '../../hooks/useLazyFetch/useLazyFetch';
 import { CoreWindow, CoreGroup, CoreVSep, CoreToggle, CoreButtonSquare } from '../../components';
-import { setBackHandler, clearBackHandler, normalizeBool, getSessionData } from '../../util/util';
+import { showConfirm } from '../../components/CoreConfirm/CoreConfirm';
+import { setBackHandler, clearBackHandler, normalizeBool, getSessionData, isRunningInWebView } from '../../util/util';
 import ModalCambiarClave from './ModalCambiarClave';
 import ModalCrearUsuario from './ModalCrearUsuario';
 
@@ -172,6 +174,31 @@ const Configuracion = ({ onBack }) => {
                                     />
                                 </>
                             )}
+                        </CoreGroup>
+                        <CoreVSep size={14} />
+                        <CoreGroup label="Biométrico">
+                            <CoreButtonSquare
+                                label="Eliminar datos biométricos"
+                                icon={<LuFingerprint size={16} />}
+                                color="#d32f2f"
+                                onClick={() => {
+                                    showConfirm({
+                                        text: '¿Eliminar datos biométricos?\nSe desactivará el acceso con huella. Podrías volver a activarlo desde el login.',
+                                        okAction: async () => {
+                                            try {
+                                                const response = await fetchData('disableBiometric', {});
+                                                if (response?.status && isRunningInWebView() && typeof Android !== 'undefined' && typeof Android.disableBiometric === 'function') {
+                                                    Android.disableBiometric();
+                                                }
+                                            } catch {
+                                                // el error lo muestra useLazyFetch
+                                            }
+                                        },
+                                    });
+                                }}
+                                ignoreFormState={true}
+                                style={{ width: '100%' }}
+                            />
                         </CoreGroup>
                     </CoreWindow>
                 </div>
