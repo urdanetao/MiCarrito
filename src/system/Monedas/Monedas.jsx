@@ -8,7 +8,7 @@ import { setBackHandler, clearBackHandler } from '../../util/util';
 
 const MONEDA_COLOR = '#f57c00';
 
-const Monedas = ({ onBack }) => {
+const Monedas = () => {
     const { fetchData, BackdropLoader, ErrorModal } = useLazyFetch();
 
     const [monedas, setMonedas] = useState([]);
@@ -154,7 +154,7 @@ const Monedas = ({ onBack }) => {
             window.history.back();
         });
         return () => clearBackHandler();
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    }, []);
 
     const containerStyles = {
         display: 'flex',

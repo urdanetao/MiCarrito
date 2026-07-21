@@ -1,12 +1,59 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { CoreHeader } from './components';
 import { Login, Engine } from './system';
-import { getSessionData } from './util/util';
+import { getSessionData, setSessionData, isRunningInWebView } from './util/util';
+import useLazyFetch from './hooks/useLazyFetch/useLazyFetch';
 
 function App() {
     const moduleName = "MiCarrito";
     const [session, setSession] = useState(getSessionData());
     const logued = session?.sessionId?.trim() !== "" ? true : false;
+    const { fetchData } = useLazyFetch();
+
+    useEffect(() => {
+        const toast = (msg) => {
+            if (isRunningInWebView() && typeof Android !== 'undefined' && typeof Android.showToast === 'function') {
+                Android.showToast(msg, 3000);
+            } else {
+                console.warn(msg);
+            }
+        };
+
+        window.onBiometricEnabled = async (bioToken) => {
+            try {
+                const response = await fetchData('registerBiometric', { bioToken });
+                if (!response?.status) {
+                    toast(response?.message || 'No se pudo registrar la biometría');
+                }
+            } catch {
+                // useLazyFetch muestra el error
+            }
+        };
+
+        window.onBiometricAuth = async (nickname, bioToken) => {
+            try {
+                const response = await fetchData('loginBiometric', { nickname, bioToken });
+                if (response?.status) {
+                    setSessionData(response.data);
+                    setSession(response.data);
+                } else {
+                    toast(response?.message || 'No se pudo iniciar sesión');
+                }
+            } catch {
+                // useLazyFetch muestra el error
+            }
+        };
+
+        window.onBiometricError = (msg) => {
+            toast(msg);
+        };
+
+        return () => {
+            delete window.onBiometricEnabled;
+            delete window.onBiometricAuth;
+            delete window.onBiometricError;
+        };
+    }, [fetchData]);
 
     const mainWindowStyles = {
         width: "100%",

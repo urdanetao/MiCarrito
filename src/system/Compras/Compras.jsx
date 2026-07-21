@@ -4,9 +4,9 @@ import {
     IoEllipsisVertical, IoCopy, IoChevronDown, IoChevronForward,
     IoCheckmarkCircle, IoTimeOutline, IoFilter,
 } from 'react-icons/io5';
-import { COLOR_MAP } from '../../util/constants';
+import { COLOR_MAP, ENTRY_MODE } from '../../util/constants';
 import useLazyFetch from '../../hooks/useLazyFetch/useLazyFetch';
-import { CoreButtonSquare, CoreMenuPopup } from '../../components';
+import { CoreButtonSquare, CoreMenuPopup, CoreText } from '../../components';
 import { showConfirm, isConfirmOpen, dismissConfirm } from '../../components/CoreConfirm/CoreConfirm';
 import { setBackHandler, setRestoreHandler, clearBackHandler, clearRestoreHandler, normalizeBool } from '../../util/util';
 import ModalCompra from './ModalCompra';
@@ -26,7 +26,6 @@ const Compras = ({ onBack }) => {
     const [selectedCompra, setSelectedCompra] = useState(null);
     const [categoriasCompra, setCategoriasCompra] = useState([]);
     const [expandedCategorias, setExpandedCategorias] = useState(() => new Set());
-    const [contraerCategorias, setContraerCategorias] = useState(false);
     const [productosPorCategoria, setProductosPorCategoria] = useState({});
 
     const [showModalCompra, setShowModalCompra] = useState(false);
@@ -58,6 +57,8 @@ const Compras = ({ onBack }) => {
     const [showModalCopiar, setShowModalCopiar] = useState(false);
     const [comprasCopiar, setComprasCopiar] = useState([]);
     const [copiarData, setCopiarData] = useState(null);
+
+    const [busqueda, setBusqueda] = useState('');
 
     const refreshCompras = useCallback(async () => {
         try {
@@ -107,7 +108,7 @@ const Compras = ({ onBack }) => {
                 updated.total !== selectedCompra.total ||
                 updated.simbolo !== selectedCompra.simbolo
             )) {
-                setSelectedCompra((prev) => ({ ...prev, estado: updated.estado, total: updated.total, simbolo: updated.simbolo }));
+                setSelectedCompra((prev) => ({ ...prev, estado: updated.estado, total: updated.total, simbolo: updated.simbolo })); // eslint-disable-line react-hooks/set-state-in-effect
             }
         }
     }, [compras]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -255,7 +256,6 @@ const Compras = ({ onBack }) => {
                 setAllCategorias(allCatsResp.data);
             }
             const contraer = configResp?.status ? normalizeBool(configResp.data?.contraercategorias) : false;
-            setContraerCategorias(contraer);
             if (!contraer && catsResp?.status && Array.isArray(catsResp.data) && catsResp.data.length > 0) {
                 const ids = catsResp.data.map((c) => Number(c.id));
                 setExpandedCategorias(new Set(ids));
@@ -283,6 +283,17 @@ const Compras = ({ onBack }) => {
             // intentionally empty
         }
     };
+
+    useEffect(() => {
+        const term = busqueda.trim();
+        if (selectedCompra && term !== '' && categoriasCompra.length > 0) {
+            categoriasCompra.forEach((cat) => {
+                if (!productosPorCategoria[Number(cat.id)]) {
+                    loadProductosCategoria(selectedCompra.id, Number(cat.id));
+                }
+            });
+        }
+    }, [busqueda, selectedCompra, categoriasCompra]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const toggleExpandCategoria = async (compraId, categoriaId) => {
         const catIdNum = Number(categoriaId);
@@ -425,20 +436,6 @@ const Compras = ({ onBack }) => {
                 }
             },
         });
-    };
-
-    const handleChangeEstadoProducto = async (prod) => {
-        try {
-            const response = await fetchData('changeEstadoProducto', { id: prod.id });
-            if (response?.status) {
-                const resp = await fetchData('getProductosCategoria', { idcom: selectedCompra.id, idcat: prod.idcat });
-                if (resp?.status && Array.isArray(resp.data)) {
-                    setProductosPorCategoria((prev) => ({ ...prev, [Number(prod.idcat)]: resp.data }));
-                }
-            }
-        } catch {
-            // intentionally empty
-        }
     };
 
     const handleOpenCopiarCategoria = async (compraId, categoriaId) => {
@@ -813,8 +810,32 @@ const Compras = ({ onBack }) => {
         flexShrink: 0,
     };
 
+    const searchBarStyles = {
+        display: 'flex',
+        alignItems: 'center',
+        padding: '6px 16px',
+        backgroundColor: '#fff',
+        borderBottom: '1px solid #e2e8f0',
+        flexShrink: 0,
+    };
+
     if (selectedCompra) {
         const simbolo = getMonedaSimbolo(selectedCompra.idmon);
+
+        const normalizeText = (s) => (s == null ? '' : String(s)).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+        const term = normalizeText(busqueda);
+        const categoriasFiltradas = term === ''
+            ? categoriasCompra.map((cat) => ({ cat, prods: productosPorCategoria[Number(cat.id)] || [] }))
+            : categoriasCompra
+                .map((cat) => {
+                    const prods = productosPorCategoria[Number(cat.id)] || [];
+                    const prodsFiltrados = prods.filter((p) => normalizeText(p.nombre).includes(term));
+                    const coincideCat = normalizeText(cat.descrip).includes(term);
+                    if (!coincideCat && prodsFiltrados.length === 0) return null;
+                    return { cat, prods: coincideCat ? prods : prodsFiltrados };
+                })
+                .filter(Boolean);
+
         return (
             <>
                 <div style={containerStyles}>
@@ -826,17 +847,28 @@ const Compras = ({ onBack }) => {
                         <span style={detailTotalStyles}>{formatTotal(selectedCompra.total, simbolo)}</span>
                     </div>
 
+                    <div style={searchBarStyles}>
+                        <CoreText
+                            label="Buscar"
+                            value={busqueda}
+                            onChange={(e) => setBusqueda(e.target.value)}
+                            entryMode={ENTRY_MODE.UPPER}
+                            width="100%"
+                            ignoreFormState={true}
+                        />
+                    </div>
+
                     <div style={listContainerStyles}>
-                        {categoriasCompra.length === 0 ? (
+                        {categoriasFiltradas.length === 0 ? (
                             <div style={emptyContainerStyles}>
                                 <div style={emptyIconStyles}>
                                     <IoCartOutline size={48} />
                                 </div>
-                                <div style={emptyTextStyles}>No hay categorias en esta compra</div>
-                                <div style={emptySubtextStyles}>Agrega productos desde las categorias</div>
+                                <div style={emptyTextStyles}>{term !== '' ? 'No se encontraron resultados' : 'No hay categorias en esta compra'}</div>
+                                <div style={emptySubtextStyles}>{term !== '' ? 'Prueba con otra palabra' : 'Agrega productos desde las categorias'}</div>
                             </div>
                         ) : (
-                            categoriasCompra.map((cat) => (
+                            categoriasFiltradas.map(({ cat, prods }) => (
                                 <div key={cat.id}>
                                     <div
                                         style={catCardStyles}
@@ -864,14 +896,14 @@ const Compras = ({ onBack }) => {
                                             <div
                                                 style={{
                                                     display: 'grid',
-                                                    gridTemplateRows: expandedCategorias.has(Number(cat.id)) ? '1fr' : '0fr',
-                                                    opacity: expandedCategorias.has(Number(cat.id)) ? 1 : 0,
+                                                    gridTemplateRows: (expandedCategorias.has(Number(cat.id)) || term !== '') ? '1fr' : '0fr',
+                                                    opacity: (expandedCategorias.has(Number(cat.id)) || term !== '') ? 1 : 0,
                                                     transition: 'grid-template-rows 0.32s ease, opacity 0.25s ease',
                                                 }}
                                             >
                                                 <div style={{ overflow: 'hidden', minHeight: 0 }}>
                                                 <div style={{ paddingLeft: '12px', paddingTop: '5px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                            {(productosPorCategoria[Number(cat.id)] || []).map((prod) => (
+                                            {prods.map((prod) => (
                                                     <div
                                                         key={prod.id}
                                                         style={prodRowStyles(normalizeBool(prod.comprado))}
@@ -901,12 +933,13 @@ const Compras = ({ onBack }) => {
                                                     </div>
                                             ))}
 
-                                    {expandedCategorias.has(Number(cat.id)) && (
+                                    {expandedCategorias.has(Number(cat.id)) && term === '' && (
                                                 <div style={totalBarStyles}>
                                                     Subtotal: ${calcSubtotalCategoria(cat.id).toFixed(2)}
                                                 </div>
                                             )}
 
+                                            {term === '' && (
                                             <div style={{ paddingTop: '2px' }}>
                                                 <CoreButtonSquare
                                                     icon={<IoAdd size={14} />}
@@ -916,12 +949,14 @@ const Compras = ({ onBack }) => {
                                                     style={{ width: '26px', height: '26px' }}
                                                 />
                                             </div>
+                                            )}
                                                 </div>
                                                 </div>
                                             </div>
                                 </div>
                             ))
                         )}
+                        <div style={{ height: '70px', flexShrink: 0 }} />
                     </div>
 
                     <button
@@ -929,7 +964,7 @@ const Compras = ({ onBack }) => {
                         onClick={handleOpenAddProductoFromFloating}
                         style={{
                             position: 'absolute',
-                            bottom: '20px',
+                            bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
                             right: '20px',
                             width: '40px',
                             height: '40px',

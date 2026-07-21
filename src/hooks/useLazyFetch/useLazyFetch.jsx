@@ -1,4 +1,3 @@
-/* global Android */
 import React, { useCallback, useState } from 'react';
 import { useToast } from '../Toast';
 import { getSessionData } from '../../util/util';

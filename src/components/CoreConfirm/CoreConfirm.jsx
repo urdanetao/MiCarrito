@@ -7,6 +7,7 @@ import {
     releaseModalLayerOrder,
     resolveModalLayerZIndex,
 } from "../../util/modalStack";
+import { pushModalBackHandler, popModalBackHandler } from "../../util/util";
 
 let confirmDispatcher = null;
 let confirmDismissHandler = null;
@@ -276,6 +277,20 @@ const CoreConfirm = () => {
             closeNativeDialog(dialogElement);
         };
     }, [shouldRender, layerOrder]);
+
+    useEffect(() => {
+        if (!confirmState.open) {
+            return undefined;
+        }
+
+        pushModalBackHandler(() => {
+            setConfirmState((previous) => ({ ...previous, open: false }));
+            runActionSafely(confirmState.cancelAction);
+        });
+        return () => {
+            popModalBackHandler();
+        };
+    }, [confirmState.open]); // eslint-disable-line react-hooks/exhaustive-deps
 
     if (!shouldRender) {
         return null;

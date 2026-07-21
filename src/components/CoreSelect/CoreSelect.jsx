@@ -1,4 +1,4 @@
-import React, { useState, useRef, forwardRef, useImperativeHandle } from 'react';
+import { useState, useRef, forwardRef, useImperativeHandle } from 'react';
 import { RxChevronDown, RxCross2 } from 'react-icons/rx';
 import { FORMSTATE } from '../../util/constants';
 import { focusElement, focusNextControl } from '../../util/focusNavigation';

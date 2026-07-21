@@ -1,6 +1,6 @@
 
 import { useEffect, useRef, useState } from "react";
-import { LuLogIn } from "react-icons/lu";
+import { LuLogIn, LuFingerprint } from "react-icons/lu";
 import { ENTRY_MODE, COLOR_MAP } from "../../util/constants";
 import { CoreWindow, CoreGroup, CoreText, CorePassword, CoreVSep, CoreButton } from "../../components";
 import useLazyFetch from "../../hooks/useLazyFetch/useLazyFetch";
@@ -14,11 +14,29 @@ const Login = ({ setSession }) => {
         nickname: "",
         pwd: "",
     });
+    const [bioAvailable, setBioAvailable] = useState(false);
 
     const nicknameRef = useRef(null);
 
     useEffect(() => {
         nicknameRef.current?.focus();
+    }, []);
+
+    useEffect(() => {
+        if (isRunningInWebView() && typeof Android !== 'undefined' && typeof Android.isBiometricAvailable === 'function') {
+            try {
+                if (typeof Android.getBiometricDiag === 'function') {
+                    console.log('[Biometric Diag]', Android.getBiometricDiag());
+                }
+                const available = Android.isBiometricAvailable();
+                console.log('[Biometric] isBiometricAvailable:', available);
+                if (available) {
+                    setBioAvailable(true); // eslint-disable-line react-hooks/set-state-in-effect
+                }
+            } catch (e) {
+                console.log('[Biometric] check error:', e);
+            }
+        }
     }, []);
 
     useEffect(() => {
@@ -69,6 +87,15 @@ const Login = ({ setSession }) => {
             setSessionData(newSessionData);
 
             setSession(newSessionData);
+
+            if (
+                isRunningInWebView()
+                && typeof Android !== 'undefined'
+                && typeof Android.enableBiometric === 'function'
+                && !Android.isBiometricAvailable()
+            ) {
+                setTimeout(() => Android.enableBiometric(loginData.nickname.trim()), 500);
+            }
         } catch {
             // intentionally empty
         }
@@ -109,11 +136,29 @@ const Login = ({ setSession }) => {
                         <CoreVSep size={20} />
                         <CoreButton
                             label="Iniciar Sesión"
+                            icon={<LuLogIn />}
                             color={COLOR_MAP.success}
                             width={"100%"}
                             onClick={handleLogin}
                             ignoreFormState={true}
                         />
+                        {bioAvailable && (
+                            <>
+                                <CoreVSep size={12} />
+                                <CoreButton
+                                    label="Entrar con huella"
+                                    icon={<LuFingerprint />}
+                                    color={COLOR_MAP.info}
+                                    width={"100%"}
+                                    onClick={() => {
+                                        if (isRunningInWebView() && typeof Android !== 'undefined' && typeof Android.authenticateBiometric === 'function') {
+                                            Android.authenticateBiometric();
+                                        }
+                                    }}
+                                    ignoreFormState={true}
+                                />
+                            </>
+                        )}
                     </CoreGroup>
                 </CoreWindow>
             </div>

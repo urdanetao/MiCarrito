@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, forwardRef, useImperativeHandle } from 'react';
+import { useEffect, useMemo, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import { RxChevronDown, RxCross2 } from 'react-icons/rx';
 import { ENTRY_MODE, FORMSTATE } from '../../util/constants';
 
@@ -270,7 +270,7 @@ const CoreSuggest = forwardRef(({
 		}
 
 		setInputValue('');
-	}, [normalizedOptions, value, fieldId, displayField, resolvedFilterFields]);
+	}, [normalizedOptions, value, fieldId, displayField, resolvedFilterFields]); // eslint-disable-line react-hooks/exhaustive-deps
 
 	useEffect(() => {
 		if (!isOpen) {
@@ -488,22 +488,22 @@ const CoreSuggest = forwardRef(({
 	const handleEnter = (event) => {
 		event.preventDefault();
 
-		let selectedOption = null;
+		let optionToSelect;
 		if (isOpen && visibleOptions.length > 0) {
-			selectedOption = visibleOptions[highlightedIndex] ?? visibleOptions[0] ?? null;
+			optionToSelect = visibleOptions[highlightedIndex] ?? visibleOptions[0] ?? null;
 		} else {
-			selectedOption = normalizedOptions.find(
+			optionToSelect = normalizedOptions.find(
 				(option) => getInputDisplayText(option).toLowerCase() === String(inputValue ?? '').trim().toLowerCase(),
 			) ?? null;
 		}
 
-		if (selectedOption) {
-			selectOption(selectedOption, { keepFocus: false });
+		if (optionToSelect) {
+			selectOption(optionToSelect, { keepFocus: false });
 		} else {
 			setIsOpen(false);
 		}
 
-		const shouldMoveFocus = notifyEnter(event, selectedOption);
+		const shouldMoveFocus = notifyEnter(event, optionToSelect);
 		if (!shouldMoveFocus) {
 			requestAnimationFrame(() => {
 				focusAndSelectInput();

@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { IoSettingsOutline } from 'react-icons/io5';
+import { IoSettingsOutline, IoKeyOutline, IoPersonAdd } from 'react-icons/io5';
 import useLazyFetch from '../../hooks/useLazyFetch/useLazyFetch';
-import { CoreWindow, CoreGroup, CoreVSep, CoreToggle } from '../../components';
-import { setBackHandler, clearBackHandler, normalizeBool } from '../../util/util';
+import { CoreWindow, CoreGroup, CoreVSep, CoreToggle, CoreButtonSquare } from '../../components';
+import { setBackHandler, clearBackHandler, normalizeBool, getSessionData } from '../../util/util';
+import ModalCambiarClave from './ModalCambiarClave';
+import ModalCrearUsuario from './ModalCrearUsuario';
 
 const CONFIG_COLOR = '#1976d2';
 
@@ -11,6 +13,11 @@ const Configuracion = ({ onBack }) => {
 
     const [contraerCategorias, setContraerCategorias] = useState(false);
     const [loaded, setLoaded] = useState(false);
+    const [showModalClave, setShowModalClave] = useState(false);
+    const [showModalUsuario, setShowModalUsuario] = useState(false);
+
+    const sessionData = getSessionData();
+    const isAdmin = sessionData?.user?.admin === 1 || sessionData?.user?.admin === '1' || sessionData?.user?.admin === true;
 
     const initializedRef = useRef(false);
     const dirtyRef = useRef(false);
@@ -59,6 +66,34 @@ const Configuracion = ({ onBack }) => {
         });
         return () => clearBackHandler();
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const handleSaveClave = async ({ actual, nueva, confirmacion }, closeModal) => {
+        try {
+            const response = await fetchData('changePassword', { actual, nueva, confirmacion });
+            if (response?.status) {
+                setShowModalClave(false);
+                if (typeof closeModal === 'function') {
+                    closeModal();
+                }
+            }
+        } catch {
+            // el error lo muestra useLazyFetch
+        }
+    };
+
+    const handleSaveUsuario = async ({ nickname, nombre, email, pwd, admin }, closeModal) => {
+        try {
+            const response = await fetchData('createUsuario', { nickname, nombre, email, pwd, admin });
+            if (response?.status) {
+                setShowModalUsuario(false);
+                if (typeof closeModal === 'function') {
+                    closeModal();
+                }
+            }
+        } catch {
+            // el error lo muestra useLazyFetch
+        }
+    };
 
     const containerStyles = {
         display: 'flex',
@@ -114,12 +149,48 @@ const Configuracion = ({ onBack }) => {
                                 {loaded ? (contraerCategorias ? 'Las categorias se muestran contraidas al abrir una compra.' : 'Las categorias se muestran desplegadas al abrir una compra.') : ''}
                             </div>
                         </CoreGroup>
+                        <CoreVSep size={14} />
+                        <CoreGroup label="Cuenta">
+                            <CoreButtonSquare
+                                label="Cambiar contrasena"
+                                icon={<IoKeyOutline size={16} />}
+                                color={CONFIG_COLOR}
+                                onClick={() => setShowModalClave(true)}
+                                ignoreFormState={true}
+                                style={{ width: '100%' }}
+                            />
+                            {isAdmin && (
+                                <>
+                                    <CoreVSep size={8} />
+                                    <CoreButtonSquare
+                                        label="Crear usuario"
+                                        icon={<IoPersonAdd size={16} />}
+                                        color={CONFIG_COLOR}
+                                        onClick={() => setShowModalUsuario(true)}
+                                        ignoreFormState={true}
+                                        style={{ width: '100%' }}
+                                    />
+                                </>
+                            )}
+                        </CoreGroup>
                     </CoreWindow>
                 </div>
 
                 <BackdropLoader />
                 <ErrorModal />
             </div>
+
+            <ModalCambiarClave
+                open={showModalClave}
+                onClose={() => setShowModalClave(false)}
+                onSave={handleSaveClave}
+            />
+
+            <ModalCrearUsuario
+                open={showModalUsuario}
+                onClose={() => setShowModalUsuario(false)}
+                onSave={handleSaveUsuario}
+            />
         </>
     );
 };

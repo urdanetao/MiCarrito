@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
-import { getSessionData, setSessionData, setBackHandler, setRestoreHandler, clearBackHandler, clearRestoreHandler, isRunningInWebView } from "../../util/util";
+import { getSessionData, setSessionData, setBackHandler, setRestoreHandler, clearRestoreHandler, isRunningInWebView } from "../../util/util";
 import useLazyFetch from "../../hooks/useLazyFetch/useLazyFetch";
 import { MenuPrincipal, CoreConfirm, CoreButtonSquare } from "../../components";
 import { showConfirm } from "../../components/CoreConfirm/CoreConfirm";

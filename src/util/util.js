@@ -43,6 +43,7 @@ function normalizeBool(value) {
 const backHandlerRegistry = {
     handler: null,
     restore: null,
+    _modalStack: [],
     set(fn) {
         this.handler = typeof fn === 'function' ? fn : null;
     },
@@ -55,7 +56,20 @@ const backHandlerRegistry = {
     clearRestore() {
         this.restore = null;
     },
+    pushModalBackHandler(fn) {
+        this._modalStack.push(typeof fn === 'function' ? fn : null);
+    },
+    popModalBackHandler() {
+        this._modalStack.pop();
+    },
     invoke() {
+        if (this._modalStack.length > 0) {
+            const fn = this._modalStack[this._modalStack.length - 1];
+            if (typeof fn === 'function') {
+                fn();
+                return true;
+            }
+        }
         if (typeof this.handler === 'function') {
             this.handler();
             return true;
@@ -76,4 +90,12 @@ function clearBackHandler() {
     backHandlerRegistry.clear();
 }
 
-export { getSessionData, setSessionData, isRunningInWebView, normalizeBool, setBackHandler, setRestoreHandler, clearBackHandler, clearBackHandler as clearRestoreHandler, backHandlerRegistry };
+export { getSessionData, setSessionData, isRunningInWebView, normalizeBool, setBackHandler, setRestoreHandler, clearBackHandler, clearBackHandler as clearRestoreHandler, pushModalBackHandler, popModalBackHandler, backHandlerRegistry };
+
+function pushModalBackHandler(fn) {
+    backHandlerRegistry.pushModalBackHandler(fn);
+}
+
+function popModalBackHandler() {
+    backHandlerRegistry.popModalBackHandler();
+}

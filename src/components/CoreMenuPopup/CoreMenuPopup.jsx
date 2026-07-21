@@ -80,10 +80,11 @@ const CoreMenuPopup = ({
         if (!open) {
             return undefined;
         }
-        const nextLayerOrder = acquireModalLayerOrder(layerIdRef.current);
+        const layerId = layerIdRef.current;
+        const nextLayerOrder = acquireModalLayerOrder(layerId);
         setLayerOrder(nextLayerOrder);
         return () => {
-            releaseModalLayerOrder(layerIdRef.current);
+            releaseModalLayerOrder(layerId);
         };
     }, [open]);
 

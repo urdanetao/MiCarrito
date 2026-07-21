@@ -204,7 +204,8 @@ const CorePassword = forwardRef(({
 
             <input
                 ref={inputRef}
-                type={isPasswordVisible ? "text" : "password"}
+                type="text"
+                autoComplete="off"
                 value={value ?? ''}
                 onChange={entryMode ? handleChange : onChange}
                 onFocus={handleFocus}
@@ -212,7 +213,10 @@ const CorePassword = forwardRef(({
                 onKeyDown={handleKeyDown}
                 onMouseEnter={() => setIsInputHovered(true)}
                 onMouseLeave={() => setIsInputHovered(false)}
-                style={inputStyles}
+                style={{
+                    ...inputStyles,
+                    WebkitTextSecurity: isPasswordVisible ? 'none' : 'disc',
+                }}
                 maxLength={maxLength}
                 disabled={isDisabled}
                 spellCheck={false}
