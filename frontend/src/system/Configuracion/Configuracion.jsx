@@ -8,6 +8,7 @@ import { showConfirm } from '../../components/CoreConfirm/CoreConfirm';
 import { setBackHandler, clearBackHandler, normalizeBool, getSessionData, isRunningInWebView } from '../../util/util';
 import ModalCambiarClave from './ModalCambiarClave';
 import ModalCrearUsuario from './ModalCrearUsuario';
+import ModalNotificacion from './ModalNotificacion';
 
 const CONFIG_COLOR = '#1976d2';
 
@@ -18,6 +19,7 @@ const Configuracion = ({ onBack }) => {
     const [loaded, setLoaded] = useState(false);
     const [showModalClave, setShowModalClave] = useState(false);
     const [showModalUsuario, setShowModalUsuario] = useState(false);
+    const [showModalNotif, setShowModalNotif] = useState(false);
 
     const sessionData = getSessionData();
     const isAdmin = sessionData?.user?.admin === 1 || sessionData?.user?.admin === '1' || sessionData?.user?.admin === true;
@@ -89,6 +91,20 @@ const Configuracion = ({ onBack }) => {
             const response = await fetchData('createUsuario', { nickname, nombre, email, pwd, admin });
             if (response?.status) {
                 setShowModalUsuario(false);
+                if (typeof closeModal === 'function') {
+                    closeModal();
+                }
+            }
+        } catch {
+            // el error lo muestra useLazyFetch
+        }
+    };
+
+    const handleSendNotif = async ({ nickname }, closeModal) => {
+        try {
+            const response = await fetchData('sendTestNotification', { nickname });
+            if (response?.status) {
+                setShowModalNotif(false);
                 if (typeof closeModal === 'function') {
                     closeModal();
                 }
@@ -204,26 +220,17 @@ const Configuracion = ({ onBack }) => {
                         <CoreVSep size={14} />
                         <CoreGroup label="Notificaciones">
                             <CoreButtonSquare
-                                label="Enviar notificación de prueba"
+                                label="Enviar notificacion de prueba"
                                 icon={<TbBell size={16} />}
                                 color="#00bcd4"
-                                onClick={async () => {
-                                    try {
-                                        const response = await fetchData('sendTestNotification', {});
-                                        if (!response?.status) {
-                                            // useLazyFetch muestra el error
-                                        }
-                                    } catch {
-                                        // useLazyFetch muestra el error
-                                    }
-                                }}
+                                onClick={() => setShowModalNotif(true)}
                                 ignoreFormState={true}
                                 style={{ width: '100%' }}
                             />
                             <CoreVSep size={8} />
                             <div style={{ fontSize: '11px', color: '#64748b', lineHeight: 1.4 }}>
                                 {isRunningInWebView()
-                                    ? 'Envía una notificación push de prueba a este dispositivo.'
+                                    ? 'Envia una notificacion push de prueba a otro usuario.'
                                     : 'Las notificaciones push solo funcionan en la app Android.'}
                             </div>
                         </CoreGroup>
@@ -244,6 +251,12 @@ const Configuracion = ({ onBack }) => {
                 open={showModalUsuario}
                 onClose={() => setShowModalUsuario(false)}
                 onSave={handleSaveUsuario}
+            />
+
+            <ModalNotificacion
+                open={showModalNotif}
+                onClose={() => setShowModalNotif(false)}
+                onSend={handleSendNotif}
             />
         </>
     );

@@ -1431,16 +1431,40 @@ function sendTestNotification($params, $token)
 {
     $userId = getUserIdFromToken($token);
     if ($userId === null) {
-        return getResultObject(false, 'Sesión inválida');
+        return getResultObject(false, 'Sesion invalida');
     }
 
     require_once __DIR__ . '/firebase_sender.php';
 
-    $sent = sendPushToUser($userId, 'MiCarrito', 'Esta es una notificación de prueba de MiCarrito');
+    $nickname = isset($params['nickname']) ? trim((string) $params['nickname']) : '';
 
-    if ($sent === 0) {
-        return getResultObject(false, 'No hay dispositivos registrados para enviar notificación');
+    if ($nickname !== '') {
+        $nicknameSql = escapeSqlLiteral($nickname);
+        $dbInfo = getMySqlDbInfo(MICARRITO_DB);
+        $conn = new MySqlDataManager($dbInfo);
+
+        if (!$conn->IsConnected()) {
+            return getResultObject(false, $conn->GetErrorMessage());
+        }
+
+        $sql = "SELECT id FROM usuarios WHERE nickname = '$nicknameSql'";
+        $result = $conn->Query($sql);
+        $conn->Close();
+
+        if ($result === false || count($result) === 0) {
+            return getResultObject(false, "Usuario '$nickname' no encontrado");
+        }
+
+        $targetUserId = (int) $result[0]['id'];
+        $sent = sendPushToUser($targetUserId, 'MiCarrito', 'Esta es una notificacion de prueba de MiCarrito');
+    } else {
+        $sent = sendPushToUser($userId, 'MiCarrito', 'Esta es una notificacion de prueba de MiCarrito');
     }
 
-    return getResultObject(true, "Notificación enviada a $sent dispositivo(s)", ['devices' => $sent]);
+    if ($sent === 0) {
+        return getResultObject(false, 'No hay dispositivos registrados para enviar notificacion');
+    }
+
+    $destino = $nickname !== '' ? $nickname : 'tu dispositivo';
+    return getResultObject(true, "Notificacion enviada a $destino ($sent dispositivo(s))", ['devices' => $sent]);
 }

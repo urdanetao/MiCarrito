@@ -3,6 +3,34 @@ require_once __DIR__ . '/firebase_config.php';
 
 $firebaseAccessToken = null;
 
+function httpPost($url, $headers, $body)
+{
+    $context = stream_context_create([
+        'http' => [
+            'method' => 'POST',
+            'header' => implode("\r\n", $headers),
+            'content' => $body,
+            'ignore_errors' => true,
+        ],
+    ]);
+
+    $response = @file_get_contents($url, false, $context);
+    if ($response === false) {
+        return ['status' => 0, 'body' => ''];
+    }
+
+    $status = 0;
+    if (isset($http_response_header)) {
+        foreach ($http_response_header as $header) {
+            if (preg_match('/^HTTP\/\S+\s+(\d+)/', $header, $m)) {
+                $status = (int) $m[1];
+            }
+        }
+    }
+
+    return ['status' => $status, 'body' => $response];
+}
+
 function getFirebaseAccessToken()
 {
     global $firebaseAccessToken;
@@ -18,7 +46,7 @@ function getFirebaseAccessToken()
 
     $sa = json_decode(file_get_contents($saPath), true);
     if (!$sa || !isset($sa['client_email']) || !isset($sa['private_key'])) {
-        saveLog('Firebase: service account JSON inválido');
+        saveLog('Firebase: service account JSON invalido');
         return null;
     }
 
@@ -42,27 +70,21 @@ function getFirebaseAccessToken()
 
     $jwt = "$signInput.$signatureB64";
 
-    $ch = curl_init('https://oauth2.googleapis.com/token');
-    curl_setopt_array($ch, [
-        CURLOPT_POST => true,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
-        CURLOPT_POSTFIELDS => http_build_query([
+    $result = httpPost(
+        'https://oauth2.googleapis.com/token',
+        ['Content-Type: application/x-www-form-urlencoded'],
+        http_build_query([
             'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
             'assertion' => $jwt,
-        ]),
-    ]);
+        ])
+    );
 
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($httpCode !== 200) {
-        saveLog("Firebase: error obteniendo access token (HTTP $httpCode): $response");
+    if ($result['status'] !== 200) {
+        saveLog("Firebase: error obteniendo access token (HTTP {$result['status']}): {$result['body']}");
         return null;
     }
 
-    $tokenData = json_decode($response, true);
+    $tokenData = json_decode($result['body'], true);
     if (!isset($tokenData['access_token'])) {
         saveLog('Firebase: respuesta sin access_token');
         return null;
@@ -118,23 +140,13 @@ function sendFcmPush($fcmToken, $title, $body, $data = [])
 
     $url = "https://fcm.googleapis.com/v1/projects/{$projectId}/messages:send";
 
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_POST => true,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_HTTPHEADER => [
-            'Authorization: Bearer ' . $accessToken,
-            'Content-Type: application/json',
-        ],
-        CURLOPT_POSTFIELDS => $payload,
-    ]);
+    $result = httpPost($url, [
+        'Authorization: Bearer ' . $accessToken,
+        'Content-Type: application/json',
+    ], $payload);
 
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($httpCode !== 200) {
-        saveLog("Firebase: error enviando push (HTTP $httpCode): $response");
+    if ($result['status'] !== 200) {
+        saveLog("Firebase: error enviando push (HTTP {$result['status']}): {$result['body']}");
         return false;
     }
 
