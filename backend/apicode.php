@@ -1397,6 +1397,8 @@ function registerDevice($params, $token)
         $deviceId = $newId;
     }
 
+    $conn->Query("UPDATE user_devices SET active = 0 WHERE idusu = $userId AND id != $deviceId");
+
     $conn->Close();
     return getResultObject(true, 'Dispositivo registrado', ['deviceId' => $deviceId]);
 }
