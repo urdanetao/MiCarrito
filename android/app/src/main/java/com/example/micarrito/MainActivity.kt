@@ -81,6 +81,16 @@ class MainActivity : AppCompatActivity() {
         const val SPLASH_TIME = 2000L
     }
 
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
+    private fun registerTokenReceiver() {
+        val filter = IntentFilter("com.example.micarrito.FCM_TOKEN_RECEIVED")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(tokenReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(tokenReceiver, filter)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -105,13 +115,7 @@ class MainActivity : AppCompatActivity() {
         biometricHelper = BiometricHelper(this, webView)
         setupWebView()
         setupBackButton()
-
-        val filter = IntentFilter("com.example.micarrito.FCM_TOKEN_RECEIVED")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(tokenReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(tokenReceiver, filter)
-        }
+        registerTokenReceiver()
 
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             if (!task.isSuccessful) {
