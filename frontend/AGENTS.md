@@ -2,11 +2,24 @@
 
 App de carrito de compras ("MiCarrito") en React 19 + Vite. Cliente frontend que se comunica con un backend PHP. Es una **app móvil híbrida** (WebView Android + frontend web).
 
-## Repositorios / rutas del proyecto
+## Repositorio / rutas del proyecto
 
-- **Frontend (este repo):** `C:\source\react\smartsoft\micarrito` — código React/Vite.
-- **Backend PHP:** `C:\xampp\htdocs\smartsoft\micarrito` — API REST (`api.php` + `apicode.php` + `mysql-data-manager.php`). Corre en XAMPP local.
-- **Código de la APK:** `C:\Users\Oscar\AndroidStudioProjects\MiCarrito` — proyecto Android (WebView) que embebe el frontend.
+**Monorepo único:** `C:\source\react\smartsoft\micarrito` — contiene TODO el proyecto.
+
+```
+micarrito/
+├── frontend/    ← React/Vite (este directorio)
+├── backend/     ← PHP API (api.php, apicode.php, firebase_sender.php, etc.)
+├── android/     ← Proyecto Android Studio (WebView + FCM)
+├── database/    ← Scripts de esquema y migración
+├── README.md
+└── .gitignore
+```
+
+- **Frontend:** `frontend/` — código React/Vite, se ejecuta con `npm run dev` desde esta carpeta.
+- **Backend:** `backend/` — API PHP. En producción corre en el VPS (`https://almacenadorasaiver.com/micarrito`). Localmente se sirve vía XAMPP apuntando a esta carpeta.
+- **Android:** `android/` — proyecto Android Studio, se abre desde esta carpeta. Embebe el frontend vía WebView.
+- **Database:** `database/` — scripts `create_schema.php` y `create_admin.php`.
 
 El build de producción del frontend (`npm run build` → `dist/`) es lo que consume la APK. En dev, el frontend habla con el backend vía el proxy de Vite (ver abajo).
 
@@ -26,7 +39,7 @@ No hay suite de tests. No ejecutar `npm test` (no existe).
   - `components/` — UI reutilizable (`Core*`). Se importan vía el barrel `components/index.js`. Cada componente vive en su propia carpeta con `index.js` + `Componente.jsx`.
   - `system/` — pantallas/módulos de negocio (`Login`, `Engine`, `Categorias`, `Compras`, `Monedas`, `Configuracion`). `Engine` es el orquestador post-login y cambia de sección con `history.pushState` (no con router).
   - `hooks/` — `useLazyFetch` (fetch centralizado a la API) y `Toast`.
-  - `util/` — `util.js` (sesión, handlers de botón back de Android, `backHandlerRegistry`), `constants.js`, `modalStack.js`, `focusNavigation.js`.
+  - `util/` — `util.js` (sesión, handlers de botón back de Android, `backHandlerRegistry`, `getFcmToken()`, `isPushNotificationSupported()`), `constants.js`, `modalStack.js`, `focusNavigation.js`.
 - Convención de carpetas: cada componente/módulo es una carpeta con `index.js` que re-exporta el default. Importar siempre desde el barrel, no desde la ruta interna, salvo excepciones explícitas (ej. `showConfirm` en `components/CoreConfirm/CoreConfirm`).
 
 ## Backend / API
@@ -35,27 +48,28 @@ No hay suite de tests. No ejecutar `npm test` (no existe).
 - En dev, Vite proxy `/api.php` → `http://localhost/smartsoft/micarrito/api.php` (`vite.config.js`). Requiere ese backend PHP corriendo localmente para que funcionen las llamadas.
 - `base: './'` en Vite: rutas relativas en el build (para servir desde subdirectorio).
 
-### Backend (PHP, `C:\xampp\htdocs\smartsoft\micarrito`)
+### Backend (PHP, `backend/`)
 
 - `api.php` es el único endpoint: valida CORS (orígenes permitidos fijos), método POST, formato del `action` (solo `[A-Za-z_][A-Za-z0-9_]*`) y formato del `token` (UUID v1-v5). Despacha por `call_user_func($action, ...)`.
 - `apicode.php` define todas las funciones de la API. Respuestas siempre vía `getResultObject($status, $message, $data)` → `{status, message, data}`. El frontend depende de esta forma.
-- **Acciones públicas** (sin token): `login`, `logout`, `isLoggedIn`, `loginBiometric`. **Privadas** (requieren token válido): `getCategorias`, `saveCategoria`, `deleteCategoria`, `getCompras`, `saveCompra`, `deleteCompra`, `changeEstadoCompra`, `duplicateCompra`, `getCategoriasCompra`, `getProductosCategoria`, `saveProducto`, `deleteProducto`, `changeEstadoProducto`, `copiarCategoria`, `getMonedas`, `saveMoneda`, `deleteMoneda`, `getConfig`, `saveConfig`, `changePassword`, `createUsuario`, `registerBiometric`, `disableBiometric`.
+- **Acciones públicas** (sin token): `login`, `logout`, `isLoggedIn`, `loginBiometric`. **Privadas** (requieren token válido): `getCategorias`, `saveCategoria`, `deleteCategoria`, `getCompras`, `saveCompra`, `deleteCompra`, `changeEstadoCompra`, `duplicateCompra`, `getCategoriasCompra`, `getProductosCategoria`, `saveProducto`, `deleteProducto`, `changeEstadoProducto`, `copiarCategoria`, `getMonedas`, `saveMoneda`, `deleteMoneda`, `getConfig`, `saveConfig`, `changePassword`, `createUsuario`, `registerBiometric`, `disableBiometric`, `registerDevice`, `unregisterDevice`, `sendTestNotification`.
 - `session-manager.php`: sesiones en archivos `data/sessions/<token>.json` (no DB). `login` devuelve la sesión con `sessionId`; el frontend la guarda en `sessionStorage`. TTL e idle timeout están en 0 (sin expiración por tiempo).
 - `mysql-data-manager.php`: wrapper mysqli propio (`Query`, `BeginTransaction`, `CommitTransaction`, `RollbackTransaction`). **Las consultas usan concatenación de strings con `escapeSqlLiteral` (reemplaza `'` por `''`)**, no prepared statements. No cambiar este patrón sin revisar todo el backend.
 - `dbinfo.php` lee credenciales de MySQL desde env (`SAIVERNET_MYSQL_HOST/PORT/USER/PWD`), DB `smartsoft_micarrito`. **No commitear credenciales.**
-- Tablas principales: `usuarios` (login, pwd en `sha3-512`, `admin` 0/1, `bio_token` VARCHAR(255) NULL — token del dispositivo para login biométrico), `categorias` (por `idusu`), `compras` (`estado` 0/1, `idmon`), `productos` (`comprado` 0/1, `prioridad` 0/1, `idcom`, `idcat`), `monedas` (`id_usu`, `siglas`, `simbolo`), `config` (fila `id=1`, `contraercategorias`).
+- Tablas principales: `usuarios` (login, pwd en `sha3-512`, `admin` 0/1, `bio_token` VARCHAR(255) NULL — token del dispositivo para login biométrico), `categorias` (por `idusu`), `compras` (`estado` 0/1, `idmon`), `productos` (`comprado` 0/1, `prioridad` 0/1, `idcom`, `idcat`), `monedas` (`id_usu`, `siglas`, `simbolo`), `config` (fila `id=1`, `contraercategorias`), `user_devices` (tokens FCM: `idusu`, `fcm_token` VARCHAR(500), `platform`, `active` 0/1, `fecha_registro`, `fecha_actualizacion`). Un usuario puede tener múltiples dispositivos.
 - IDs autoincrementales generados manualmente (SELECT MAX id + 1) dentro de transacción. Patrón consistente en todas las tablas: `SELECT t.id FROM <table> AS t ORDER BY t.id DESC LIMIT 1`, default `1` si vacío, `max + 1` si hay registros.
 
-### APK Android (WebView, `C:\Users\Oscar\AndroidStudioProjects\MiCarrito`)
+### APK Android (WebView, `android/`)
 
 - Proyecto Android Studio (Kotlin). La única `Activity` es `MainActivity.kt` (paquete `com.example.micarrito`).
 - Es un **WebView puro**: carga la URL `BASE_URL` (en `MainActivity.kt:56`, hoy `https://almacenadorasaiver.com/micarrito`; hay una URL local comentada `http://192.168.1.20/micarrito`). No embebe el `dist/` local; sirve el frontend desde el servidor web.
 - Puente JS↔Android vía `addJavascriptInterface(WebAppInterface, "Android")`:
   - El frontend detecta WebView con `window.Android.showToast` (`isRunningInWebView()` en `util/util.js`). El backend PHP/orígenes permitidos deben coincidir.
   - `Android.showToast(message, duration)` muestra un Toast nativo (usado por `useLazyFetch` para mensajes de API).
+  - `Android.getFcmToken()` retorna el FCM token actual (string vacío si no hay token).
   - El botón back de Android llama a `window.onAndroidBack()` (definido en `src/main.jsx`) a través de `evaluateJavascript`.
-- `AndroidManifest.xml` usa `usesCleartextTraffic="true"`, `INTERNET` + `ACCESS_NETWORK_STATE` y `screenOrientation="portrait"` (orientación forzada a vertical). Splash screen (2s) y pantalla de error de red con botón reintentar.
-- `build.gradle.kts`: `minSdk=28`, `targetSdk=36`, `compileSdk=37`, namespace `com.example.micarrito`. APK release sin optimización (`optimization.enable=false`).
+- `AndroidManifest.xml` usa `usesCleartextTraffic="true"`, `INTERNET` + `ACCESS_NETWORK_STATE` + `POST_NOTIFICATIONS` y `screenOrientation="portrait"` (orientación forzada a vertical). Splash screen (2s) y pantalla de error de red con botón reintentar. Servicio `MiCarritoFirebaseMessagingService` para FCM.
+- `build.gradle.kts`: `minSdk=28`, `targetSdk=36`, `compileSdk=37`, namespace `com.example.micarrito`. APK release sin optimización (`optimization.enable=false`). Firebase BOM 33.7.0 + firebase-messaging. Google services plugin.
 - Cambiar la URL de producción se hace editando `BASE_URL` en `MainActivity.kt` (no en el frontend). El despliegue consiste en subir el `dist/` del frontend al servidor apuntado por `BASE_URL`.
 - **Menú contextual de selección de texto (Copiar/Compartir/Seleccionar todo):** el CSS `user-select: none` global en `index.css` NO basta; el action mode nativo del WebView se dispara igual por long-press. La solución definitiva es en la APK: `MainActivity.kt` sobreescribe `startActionMode` para retornar `null`. Requiere recompilar y subir la APK.
 - **Índice seguro de la barra de navegación Android:** `index.html` usa `viewport-fit=cover`; el botón flotante `+` del detalle de compra usa `bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))'`.
@@ -85,10 +99,23 @@ No hay suite de tests. No ejecutar `npm test` (no existe).
 - **NO usar `EncryptedSharedPreferences` ni `MasterKey`**: causaban crashes nativos (SIGABRT) que `try-catch` no atrapa. La `SecretKey` con `setUserAuthenticationRequired(true)` del AndroidKeyStore persiste entre reinstalaciones (ligada al certificado de firma) y genera "keystore error" permanente. `security-crypto` fue eliminado de `build.gradle.kts` y `libs.versions.toml`.
 - Backend: `registerBiometric` (privada, guarda `bio_token` del dispositivo para el usuario) + `loginBiometric` (pública, matchea `nickname`+`bio_token` y devuelve sesión sin pwd ni `bio_token`). Migración `update_db.php` (idempotente, agrega la columna `bio_token` a `usuarios`).
 - Android: `BiometricHelper.kt` (~124 líneas) — simplificado. Genera `bioToken` con `UUID.randomUUID()`, guarda en `SharedPreferences` (`micarrito_prefs`). `BiometricPrompt` usa `BIOMETRIC_STRONG` en API 28-29, `BIOMETRIC_STRONG | DEVICE_CREDENTIAL` en API 30+ (combo soportado desde `Build.VERSION_CODES.R`). **NO usar `canAuthenticate()`**: es poco confiable (devuelve `-2` NO_HARDWARE o `-1` NONE_ENROLLED en dispositivos con hardware funcional). Usa `Build.VERSION.SDK_INT` para elegir authenticators. `WebAppInterface` expone `isBiometricAvailable()`, `hasBiometricHardware()`, `getBiometricDiag()`, `enableBiometric(nickname)`, `authenticateBiometric()`, `disableBiometric()` — todos con safety-net `try-catch` en `runOnUiThread`. `webView` es constructor param de `WebAppInterface` (necesario para `evaluateJavascript`).
-- Frontend: `App.jsx` define handlers globales `window.onBiometricEnabled(bioToken)` → `registerBiometric` (sin toast automático); `window.onBiometricAuth(nickname, bioToken)` → `loginBiometric` + setea sesión; `window.onBiometricError(msg)` → toast. `Login.jsx` muestra botón **"Entrar con huella"** (con icono `LuFingerprint`) cuando `Android.hasBiometricHardware()` es true Y aún no hay biométricos registrados (`!bioRegistered`). Al activar el toggle "Activar identificación biométrica" y hacer login exitoso, llama `Android.enableBiometric(nickname)` con `setTimeout(500ms)` para evitar crashear React. `enableBiometric` tiene early return si `prefBioEnabled` ya es `true` para no re-registrar.
-- `Configuracion.jsx`: grupo **"Biométrico"** con botón "Eliminar datos biométricos" que llama `fetchData('disableBiometric')` + `Android.disableBiometric()`. Solo se muestra si `Android.hasBiometricHardware()` es true.
+- Frontend: `App.jsx` define handlers globales `window.onFcmTokenReceived(token)` → `registerDevice` (registra token FCM en el VPS); `window.onBiometricEnabled(bioToken)` → `registerBiometric` (sin toast automático); `window.onBiometricAuth(nickname, bioToken)` → `loginBiometric` + setea sesión; `window.onBiometricError(msg)` → toast. `Login.jsx` muestra botón **"Entrar con huella"** (con icono `LuFingerprint`) cuando `Android.hasBiometricHardware()` es true Y aún no hay biométricos registrados (`!bioRegistered`). Al activar el toggle "Activar identificación biométrica" y hacer login exitoso, llama `Android.enableBiometric(nickname)` con `setTimeout(500ms)` para evitar crashear React. `enableBiometric` tiene early return si `prefBioEnabled` ya es `true` para no re-registrar.
+- `Configuracion.jsx`: grupo **"Biométrico"** con botón "Eliminar datos biométricos" que llama `fetchData('disableBiometric')` + `Android.disableBiometric()`. Solo se muestra si `Android.hasBiometricHardware()` es true. Grupo **"Notificaciones"** con botón "Enviar notificación de prueba" → `fetchData('sendTestNotification')`. Muestra hint contextual (solo funciona en Android).
 - El APK (WebView) no tiene acceso a biometría: siempre lo gestiona la capa nativa y pasa el resultado al frontend vía el puente JS.
 - Diagnóstico: `Android.getBiometricDiag()` desde la consola WebView (`chrome://inspect`) muestra `api=<level> prefBioEnabled=<bool> nickname=<str> hasToken=<bool>`.
+
+### Notificaciones Push (Firebase Cloud Messaging)
+- **Infraestructura FCM** implementada en Fase 1. Backend envía vía HTTP v1 API de FCM usando curl + openssl (sin dependencias PHP externas).
+- **Archivos backend:** `firebase_sender.php` (servicio de envío), `firebase_config.php` (config del service account, gitignored), `firebase_config.php.example` (template). El service account JSON (`micarrito-*.json`) también está gitignored.
+- **Tabla `user_devices`:** almacena tokens FCM por usuario. Soporta múltiples dispositivos por usuario. Columnas: `id`, `idusu`, `fcm_token`, `platform`, `active`, `fecha_registro`, `fecha_actualizacion`.
+- **Flujo de registro:** Android obtiene FCM token → lo envía al WebView via `evaluateJavascript("window.onFcmTokenReceived(token)")` → `App.jsx` llama `fetchData('registerDevice', { fcmToken })` al VPS. Si no hay sesión activa, el token se guarda en `pendingFcmTokenRef` y se registra al hacer login.
+- **WebAppInterface** expone `getFcmToken()` (retorna token actual o string vacío). `WebAppInterface` recibe un lambda `tokenProvider` para acceder a `currentFcmToken` de `MainActivity`.
+- **`MiCarritoFirebaseMessagingService.kt`:** recibe `onNewToken` (guarda en SharedPreferences + notifica al WebView) y `onMessageReceived` (crea canal `micarrito_notifications`, muestra notificación con PendingIntent a MainActivity). El tap abre la app sin deep link.
+- **`AndroidManifest.xml`:** permiso `POST_NOTIFICATIONS` (runtime en Android 13+), servicio `MiCarritoFirebaseMessagingService` con `MESSAGING_EVENT`.
+- **Frontend:** `util.js` exporta `getFcmToken()` e `isPushNotificationSupported()`. `Configuracion.jsx` tiene grupo "Notificaciones" con botón "Enviar notificación de prueba" → `fetchData('sendTestNotification')`.
+- **Backend actions:** `registerDevice` (registra/actualiza token), `unregisterDevice` (marca `active=0`), `sendTestNotification` (envía push de prueba al propio usuario).
+- **Archivos sensibles NUNCA se commitean:** `google-services.json` (Android), `firebase_service_account.json` / `firebase_config.php` / `micarrito-*.json` (backend).
+- **Prerrequisito:** crear proyecto Firebase, descargar `google-services.json` → `android/app/`, generar service account → `backend/`.
 
 ### Despliegue (crítico — leer antes de tocar backend)
 - El APK carga el frontend y llama al backend desde `BASE_URL` (producción `https://almacenadorasaiver.com/micarrito`). El teléfono SIEMPRE prueba contra el backend de producción, no contra el XAMPP local.
