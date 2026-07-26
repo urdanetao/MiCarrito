@@ -1,18 +1,128 @@
-# React + Vite
+# MiCarrito
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplicacion movil hibrida (React + Android WebView + PHP backend) para el control de compras en el supermercado.
 
-Currently, two official plugins are available:
+## Estructura del proyecto
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```
+MiCarrito/
+├── frontend/      # React 19 + Vite (cliente web)
+├── backend/       # PHP API REST
+├── android/       # APK Android (WebView)
+└── database/      # Scripts de inicializacion de BD
+```
 
-## React Compiler
+## Requisitos previos
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+- **Node.js** >= 18
+- **PHP** >= 8.0 (con extension `mbstring` habilitada)
+- **MySQL** >= 5.7
+- **XAMPP** o similar (para PHP + MySQL)
+- **Android Studio** (para compilar la APK)
 
-Note: This will impact Vite dev & build performances.
+## 1. Base de datos
 
-## Expanding the ESLint configuration
+```bash
+cd database
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+# Copiar y editar credenciales (si es necesario)
+# Crear esquema
+php create_schema.php
+
+# Crear usuario admin por defecto (admin / admin)
+php create_admin.php
+```
+
+## 2. Backend (PHP)
+
+```bash
+cd backend
+
+# Copiar archivo de configuracion y editar credenciales
+cp dbinfo.php.example dbinfo.php
+# Editar dbinfo.php con tus credenciales MySQL
+```
+
+El backend debe estar accessible en:
+```
+http://localhost/smartsoft/micarrito/api.php
+```
+
+Copiar la carpeta `backend/` dentro de `C:\xampp\htdocs\smartsoft\micarrito\` (o configurar el VirtualHost correspondiente).
+
+## 3. Frontend (React)
+
+```bash
+cd frontend
+
+# Instalar dependencias
+npm install
+
+# Servidor de desarrollo
+npm run dev
+```
+
+El frontend corre en `http://localhost:5173` y usa el proxy de Vite para redirigir `/api.php` al backend local.
+
+### Build de produccion
+
+```bash
+npm run build
+```
+
+El resultado queda en `dist/`. Subir ese contenido al servidor web que la APK apuntara.
+
+## 4. APK Android
+
+Abrir el proyecto en Android Studio:
+```
+File > Open > seleccionar la carpeta android/
+```
+
+### Configurar URL del backend
+
+Editar `app/src/main/java/com/example/micarrito/MainActivity.kt` y cambiar `BASE_URL`:
+
+```kotlin
+// Produccion
+private val BASE_URL = "https://tu-dominio.com/micarrito"
+
+// Desarrollo local (XAMPP)
+// private val BASE_URL = "http://192.168.1.X/smartsoft/micarrito"
+```
+
+### Compilar APK
+
+```
+Build > Build Bundle(s) / APK(s) > Build APK(s)
+```
+
+---
+
+## Funcionalidades
+
+- **Login** con usuario/clave y login biometrico (huella/rostro)
+- **Categorias** de productos (CRUD)
+- **Compras** con lista de productos, estados y moneda
+- **Monedas** personalizables por usuario
+- **Configuracion** (cambiar clave, crear usuarios, gestionar biometrico)
+- **Filtro de productos** en detalle de compra (todos/pendientes/comprados)
+- **Prioridad de productos** (normal/alta) con indicacion visual verde
+- Navegacion con boton atras de Android
+
+## Condiciones del estado
+
+| Campo | Valores |
+|-------|---------|
+| `compras.estado` | 0 = pendiente, 1 = completada |
+| `productos.comprado` | 0 = pendiente, 1 = comprado |
+| `productos.prioridad` | 0 = normal, 1 = alta |
+| `usuarios.admin` | 0 = usuario normal, 1 = administrador |
+| `config.contraercategorias` | 0 = expandido, 1 = colapsado |
+
+## Tecnologias
+
+- **Frontend:** React 19, Vite 8, react-icons
+- **Backend:** PHP 8, MySQL (mysqli)
+- **Android:** Kotlin, WebView, AndroidX Biometric
+- **UI:** Estilos inline (sin framework CSS)

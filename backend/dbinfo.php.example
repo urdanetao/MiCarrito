@@ -1,0 +1,31 @@
+<?php
+function envOrDefault($key, $default)
+{
+    $value = getenv($key);
+    if ($value === false || $value === '') {
+        return $default;
+    }
+
+    return $value;
+}
+
+// Información de conexión a MySql.
+define('__mysql_host', envOrDefault('SAIVERNET_MYSQL_HOST', 'localhost'));
+define('__mysql_port', intval(envOrDefault('SAIVERNET_MYSQL_PORT', '3306')));
+define('__mysql_prefix', envOrDefault('SAIVERNET_MYSQL_PREFIX', ''));
+define('__mysql_user', envOrDefault('SAIVERNET_MYSQL_USER', 'TU_USUARIO_MYSQL'));
+define('__mysql_pwd', envOrDefault('SAIVERNET_MYSQL_PWD', 'TU_CONTRASENA_MYSQL'));
+
+// Configuración de conexión a MySQL.
+function getMySqlDbInfo($dbname)
+{
+    $dbInfo = array();
+    $dbInfo['host'] = __mysql_host;
+    $dbInfo['port'] = __mysql_port;
+    $dbInfo['prefix'] = __mysql_prefix;
+    $dbInfo['dbname'] = $dbname;
+    $dbInfo['user'] = __mysql_user;
+    $dbInfo['pwd'] = __mysql_pwd;
+
+    return $dbInfo;
+}
