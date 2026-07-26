@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { IoSettingsOutline, IoKeyOutline, IoPersonAdd } from 'react-icons/io5';
 import { LuFingerprint } from 'react-icons/lu';
+import { TbBell } from 'react-icons/tb';
 import useLazyFetch from '../../hooks/useLazyFetch/useLazyFetch';
 import { CoreWindow, CoreGroup, CoreVSep, CoreToggle, CoreButtonSquare } from '../../components';
 import { showConfirm } from '../../components/CoreConfirm/CoreConfirm';
@@ -199,6 +200,32 @@ const Configuracion = ({ onBack }) => {
                                 ignoreFormState={true}
                                 style={{ width: '100%' }}
                             />
+                        </CoreGroup>
+                        <CoreVSep size={14} />
+                        <CoreGroup label="Notificaciones">
+                            <CoreButtonSquare
+                                label="Enviar notificación de prueba"
+                                icon={<TbBell size={16} />}
+                                color="#00bcd4"
+                                onClick={async () => {
+                                    try {
+                                        const response = await fetchData('sendTestNotification', {});
+                                        if (!response?.status) {
+                                            // useLazyFetch muestra el error
+                                        }
+                                    } catch {
+                                        // useLazyFetch muestra el error
+                                    }
+                                }}
+                                ignoreFormState={true}
+                                style={{ width: '100%' }}
+                            />
+                            <CoreVSep size={8} />
+                            <div style={{ fontSize: '11px', color: '#64748b', lineHeight: 1.4 }}>
+                                {isRunningInWebView()
+                                    ? 'Envía una notificación push de prueba a este dispositivo.'
+                                    : 'Las notificaciones push solo funcionan en la app Android.'}
+                            </div>
                         </CoreGroup>
                     </CoreWindow>
                 </div>

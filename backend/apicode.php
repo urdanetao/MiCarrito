@@ -1351,3 +1351,96 @@ function disableBiometric($params, $token)
     $conn->Close();
     return getResultObject(true, 'Datos biométricos eliminados');
 }
+
+// =====================
+// Notificaciones Push
+// =====================
+
+function registerDevice($params, $token)
+{
+    $userId = getUserIdFromToken($token);
+    if ($userId === null) {
+        return getResultObject(false, 'Sesión inválida');
+    }
+
+    $fcmToken = isset($params['fcmToken']) ? trim((string) $params['fcmToken']) : '';
+    if ($fcmToken === '') {
+        return getResultObject(false, 'Se requiere fcmToken');
+    }
+
+    $platform = isset($params['platform']) ? trim((string) $params['platform']) : 'android';
+
+    $dbInfo = getMySqlDbInfo(MICARRITO_DB);
+    $conn = new MySqlDataManager($dbInfo);
+
+    if (!$conn->IsConnected()) {
+        return getResultObject(false, $conn->GetErrorMessage());
+    }
+
+    $fcmTokenSql = escapeSqlLiteral($fcmToken);
+
+    $existing = $conn->Query("SELECT id FROM user_devices WHERE fcm_token = '$fcmTokenSql'");
+
+    if ($existing !== false && count($existing) > 0) {
+        $deviceId = (int) $existing[0]['id'];
+        $conn->Query("UPDATE user_devices SET idusu = $userId, active = 1, fecha_actualizacion = NOW() WHERE id = $deviceId");
+    } else {
+        $result = $conn->Query("SELECT t.id FROM user_devices AS t ORDER BY t.id DESC LIMIT 1");
+        $newId = 1;
+        if ($result !== false && count($result) > 0) {
+            $newId = (int) $result[0]['id'] + 1;
+        }
+
+        $platformSql = escapeSqlLiteral($platform);
+        $conn->Query("INSERT INTO user_devices (id, idusu, fcm_token, platform, active, fecha_registro, fecha_actualizacion)
+            VALUES ($newId, $userId, '$fcmTokenSql', '$platformSql', 1, NOW(), NOW())");
+        $deviceId = $newId;
+    }
+
+    $conn->Close();
+    return getResultObject(true, 'Dispositivo registrado', ['deviceId' => $deviceId]);
+}
+
+function unregisterDevice($params, $token)
+{
+    $userId = getUserIdFromToken($token);
+    if ($userId === null) {
+        return getResultObject(false, 'Sesión inválida');
+    }
+
+    $fcmToken = isset($params['fcmToken']) ? trim((string) $params['fcmToken']) : '';
+    if ($fcmToken === '') {
+        return getResultObject(false, 'Se requiere fcmToken');
+    }
+
+    $dbInfo = getMySqlDbInfo(MICARRITO_DB);
+    $conn = new MySqlDataManager($dbInfo);
+
+    if (!$conn->IsConnected()) {
+        return getResultObject(false, $conn->GetErrorMessage());
+    }
+
+    $fcmTokenSql = escapeSqlLiteral($fcmToken);
+    $conn->Query("UPDATE user_devices SET active = 0, fecha_actualizacion = NOW() WHERE fcm_token = '$fcmTokenSql' AND idusu = $userId");
+
+    $conn->Close();
+    return getResultObject(true, 'Dispositivo desregistrado');
+}
+
+function sendTestNotification($params, $token)
+{
+    $userId = getUserIdFromToken($token);
+    if ($userId === null) {
+        return getResultObject(false, 'Sesión inválida');
+    }
+
+    require_once __DIR__ . '/firebase_sender.php';
+
+    $sent = sendPushToUser($userId, 'MiCarrito', 'Esta es una notificación de prueba de MiCarrito');
+
+    if ($sent === 0) {
+        return getResultObject(false, 'No hay dispositivos registrados para enviar notificación');
+    }
+
+    return getResultObject(true, "Notificación enviada a $sent dispositivo(s)", ['devices' => $sent]);
+}

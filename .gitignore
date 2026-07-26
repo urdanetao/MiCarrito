@@ -20,6 +20,9 @@ android/.DS_Store
 # --- Backend ---
 backend/vendor/
 backend/dbinfo.php
+backend/firebase_config.php
+backend/firebase_service_account.json
+backend/micarrito-*.json
 backend/data/
 backend/*.log
 

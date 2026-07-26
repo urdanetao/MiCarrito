@@ -1,0 +1,11 @@
+<?php
+function envOrDefaultFirebase($key, $default)
+{
+    $value = getenv($key);
+    if ($value === false || $value === '') {
+        return $default;
+    }
+    return $value;
+}
+
+define('FIREBASE_SERVICE_ACCOUNT_PATH', envOrDefaultFirebase('FIREBASE_SERVICE_ACCOUNT', __DIR__ . '/firebase_service_account.json'));

@@ -1,6 +1,10 @@
 package com.example.micarrito
 
 import android.annotation.SuppressLint
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -31,6 +35,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.google.firebase.messaging.FirebaseMessaging
 
 class MainActivity : AppCompatActivity() {
 
@@ -41,6 +46,20 @@ class MainActivity : AppCompatActivity() {
     private lateinit var biometricHelper: BiometricHelper
     
     private var hasError = false
+    private var currentFcmToken: String? = null
+
+    private val tokenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val token = intent?.getStringExtra("fcm_token") ?: return
+            currentFcmToken = token
+            if (webView.visibility == View.VISIBLE) {
+                webView.evaluateJavascript(
+                    "window.onFcmTokenReceived && window.onFcmTokenReceived(${JSONObject.quote(token)})",
+                    null
+                )
+            }
+        }
+    }
 
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onLost(network: Network) {
@@ -55,6 +74,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
+        private const val TAG = "MainActivity"
         // const val BASE_URL = "http://192.168.1.20/micarrito"
         const val BASE_URL = "https://almacenadorasaiver.com/micarrito"
         const val SPLASH_TIME = 2000L
@@ -85,6 +105,23 @@ class MainActivity : AppCompatActivity() {
         setupWebView()
         setupBackButton()
 
+        val filter = IntentFilter("com.example.micarrito.FCM_TOKEN_RECEIVED")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(tokenReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(tokenReceiver, filter)
+        }
+
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                Log.w(TAG, "FCM token retrieval failed", task.exception)
+                return@addOnCompleteListener
+            }
+            val token = task.result
+            currentFcmToken = token
+            Log.d(TAG, "FCM token: ${token?.take(20)}...")
+        }
+
         val connectivityManager = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         val networkRequest = NetworkRequest.Builder().build()
         connectivityManager.registerNetworkCallback(networkRequest, networkCallback)
@@ -110,7 +147,7 @@ class MainActivity : AppCompatActivity() {
             mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         }
 
-        webView.addJavascriptInterface(WebAppInterface(this, biometricHelper, webView), "Android")
+        webView.addJavascriptInterface(WebAppInterface(this, biometricHelper, webView) { currentFcmToken }, "Android")
 
         webView.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(msg: ConsoleMessage?): Boolean {
@@ -125,6 +162,12 @@ class MainActivity : AppCompatActivity() {
                 Log.d("WebView", "onPageFinished: $url")
                 if (!hasError) {
                     showWebView()
+                    currentFcmToken?.let { token ->
+                        view?.evaluateJavascript(
+                            "window.onFcmTokenReceived && window.onFcmTokenReceived(${JSONObject.quote(token)})",
+                            null
+                        )
+                    }
                 }
             }
 
@@ -211,7 +254,8 @@ class MainActivity : AppCompatActivity() {
     class WebAppInterface(
         private val activity: AppCompatActivity,
         private val biometricHelper: BiometricHelper,
-        private val webView: WebView
+        private val webView: WebView,
+        private val tokenProvider: () -> String?
     ) {
         @JavascriptInterface
         fun onBackPressed() {
@@ -281,6 +325,11 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+
+        @JavascriptInterface
+        fun getFcmToken(): String {
+            return tokenProvider() ?: ""
+        }
     }
 
     override fun startActionMode(callback: ActionMode.Callback?): ActionMode? {
@@ -294,6 +343,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        unregisterReceiver(tokenReceiver)
         val connectivityManager = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         connectivityManager.unregisterNetworkCallback(networkCallback)
     }

@@ -102,9 +102,22 @@ CREATE TABLE IF NOT EXISTS config (
     contraercategorias INT NOT NULL DEFAULT 0 COMMENT '0=expandido, 1=colapsado',
     PRIMARY KEY (id)
 ) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS user_devices (
+    id                 INT           NOT NULL,
+    idusu              INT           NOT NULL COMMENT 'FK -> usuarios.id',
+    fcm_token          VARCHAR(500)  NOT NULL,
+    platform           VARCHAR(20)   NOT NULL DEFAULT 'android',
+    active             INT           NOT NULL DEFAULT 1,
+    fecha_registro     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_idusu (idusu),
+    KEY idx_fcm_token (fcm_token(191))
+) ENGINE=InnoDB;
 ";
 
-$tables = ['usuarios', 'categorias', 'monedas', 'compras', 'productos', 'config'];
+$tables = ['usuarios', 'categorias', 'monedas', 'compras', 'productos', 'config', 'user_devices'];
 
 $conn->query("SET FOREIGN_KEY_CHECKS = 0");
 

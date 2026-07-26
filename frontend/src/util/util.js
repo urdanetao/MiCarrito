@@ -36,6 +36,22 @@ function isRunningInWebView() {
     return typeof Android !== 'undefined' && typeof Android.showToast === 'function';
 }
 
+function isPushNotificationSupported() {
+    return isRunningInWebView() && typeof Android.getFcmToken === 'function';
+}
+
+function getFcmToken() {
+    if (!isPushNotificationSupported()) {
+        return null;
+    }
+    try {
+        const token = Android.getFcmToken();
+        return token || null;
+    } catch {
+        return null;
+    }
+}
+
 function normalizeBool(value) {
     return value === '1' || value === true || value === 'true';
 }
@@ -90,7 +106,7 @@ function clearBackHandler() {
     backHandlerRegistry.clear();
 }
 
-export { getSessionData, setSessionData, isRunningInWebView, normalizeBool, setBackHandler, setRestoreHandler, clearBackHandler, clearBackHandler as clearRestoreHandler, pushModalBackHandler, popModalBackHandler, backHandlerRegistry };
+export { getSessionData, setSessionData, isRunningInWebView, isPushNotificationSupported, getFcmToken, normalizeBool, setBackHandler, setRestoreHandler, clearBackHandler, clearBackHandler as clearRestoreHandler, pushModalBackHandler, popModalBackHandler, backHandlerRegistry };
 
 function pushModalBackHandler(fn) {
     backHandlerRegistry.pushModalBackHandler(fn);

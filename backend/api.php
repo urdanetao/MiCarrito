@@ -87,6 +87,9 @@ try {
         'createUsuario',
         'registerBiometric',
         'disableBiometric',
+        'registerDevice',
+        'unregisterDevice',
+        'sendTestNotification',
     ];
 
     $rawInput = file_get_contents('php://input');

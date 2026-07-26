@@ -49,7 +49,7 @@ class BiometricHelper(
             BiometricManager.Authenticators.BIOMETRIC_STRONG
         }
         val builder = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Acceso biometrico")si
+            .setTitle("Acceso biometrico")
             .setSubtitle("Confirma tu identidad para entrar")
             .setAllowedAuthenticators(authenticators)
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {

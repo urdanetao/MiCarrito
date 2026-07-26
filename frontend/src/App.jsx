@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { CoreHeader } from './components';
 import { Login, Engine } from './system';
 import { getSessionData, setSessionData, isRunningInWebView } from './util/util';
@@ -9,6 +9,29 @@ function App() {
     const [session, setSession] = useState(getSessionData());
     const logued = session?.sessionId?.trim() !== "" ? true : false;
     const { fetchData } = useLazyFetch();
+    const pendingFcmTokenRef = useRef(null);
+
+    const registerFcmToken = useCallback(async (token) => {
+        if (!token) return;
+        const sessionData = getSessionData();
+        const sessionId = sessionData?.sessionId;
+        if (!sessionId || sessionId.trim() === '') {
+            pendingFcmTokenRef.current = token;
+            return;
+        }
+        try {
+            await fetchData('registerDevice', { fcmToken: token, platform: 'android' });
+        } catch {
+            // useLazyFetch muestra el error
+        }
+    }, [fetchData]);
+
+    useEffect(() => {
+        if (logued && pendingFcmTokenRef.current) {
+            registerFcmToken(pendingFcmTokenRef.current);
+            pendingFcmTokenRef.current = null;
+        }
+    }, [logued]); // eslint-disable-line react-hooks/exhaustive-deps
 
     useEffect(() => {
         const toast = (msg) => {
@@ -17,6 +40,10 @@ function App() {
             } else {
                 console.warn(msg);
             }
+        };
+
+        window.onFcmTokenReceived = (token) => {
+            registerFcmToken(token);
         };
 
         window.onBiometricEnabled = async (bioToken) => {
@@ -49,11 +76,12 @@ function App() {
         };
 
         return () => {
+            delete window.onFcmTokenReceived;
             delete window.onBiometricEnabled;
             delete window.onBiometricAuth;
             delete window.onBiometricError;
         };
-    }, [fetchData]);
+    }, [fetchData, registerFcmToken]);
 
     const mainWindowStyles = {
         width: "100%",
