@@ -43,7 +43,7 @@ No hay suite de tests. No ejecutar `npm test` (no existe).
 - `session-manager.php`: sesiones en archivos `data/sessions/<token>.json` (no DB). `login` devuelve la sesión con `sessionId`; el frontend la guarda en `sessionStorage`. TTL e idle timeout están en 0 (sin expiración por tiempo).
 - `mysql-data-manager.php`: wrapper mysqli propio (`Query`, `BeginTransaction`, `CommitTransaction`, `RollbackTransaction`). **Las consultas usan concatenación de strings con `escapeSqlLiteral` (reemplaza `'` por `''`)**, no prepared statements. No cambiar este patrón sin revisar todo el backend.
 - `dbinfo.php` lee credenciales de MySQL desde env (`SAIVERNET_MYSQL_HOST/PORT/USER/PWD`), DB `smartsoft_micarrito`. **No commitear credenciales.**
-- Tablas principales: `usuarios` (login, pwd en `sha3-512`, `admin` 0/1, `bio_token` VARCHAR(255) NULL — token del dispositivo para login biométrico), `categorias` (por `idusu`), `compras` (`estado` 0/1, `idmon`), `productos` (`comprado` 0/1, `idcom`, `idcat`), `monedas` (`id_usu`, `siglas`, `simbolo`), `config` (fila `id=1`, `contraercategorias`).
+- Tablas principales: `usuarios` (login, pwd en `sha3-512`, `admin` 0/1, `bio_token` VARCHAR(255) NULL — token del dispositivo para login biométrico), `categorias` (por `idusu`), `compras` (`estado` 0/1, `idmon`), `productos` (`comprado` 0/1, `prioridad` 0/1, `idcom`, `idcat`), `monedas` (`id_usu`, `siglas`, `simbolo`), `config` (fila `id=1`, `contraercategorias`).
 - IDs autoincrementales generados manualmente (SELECT MAX id + 1) dentro de transacción. Patrón consistente en todas las tablas: `SELECT t.id FROM <table> AS t ORDER BY t.id DESC LIMIT 1`, default `1` si vacío, `max + 1` si hay registros.
 
 ### APK Android (WebView, `C:\Users\Oscar\AndroidStudioProjects\MiCarrito`)
@@ -54,7 +54,7 @@ No hay suite de tests. No ejecutar `npm test` (no existe).
   - El frontend detecta WebView con `window.Android.showToast` (`isRunningInWebView()` en `util/util.js`). El backend PHP/orígenes permitidos deben coincidir.
   - `Android.showToast(message, duration)` muestra un Toast nativo (usado por `useLazyFetch` para mensajes de API).
   - El botón back de Android llama a `window.onAndroidBack()` (definido en `src/main.jsx`) a través de `evaluateJavascript`.
-- `AndroidManifest.xml` usa `usesCleartextTraffic="true"` e `INTERNET` + `ACCESS_NETWORK_STATE`. Splash screen (2s) y pantalla de error de red con botón reintentar.
+- `AndroidManifest.xml` usa `usesCleartextTraffic="true"`, `INTERNET` + `ACCESS_NETWORK_STATE` y `screenOrientation="portrait"` (orientación forzada a vertical). Splash screen (2s) y pantalla de error de red con botón reintentar.
 - `build.gradle.kts`: `minSdk=28`, `targetSdk=36`, `compileSdk=37`, namespace `com.example.micarrito`. APK release sin optimización (`optimization.enable=false`).
 - Cambiar la URL de producción se hace editando `BASE_URL` en `MainActivity.kt` (no en el frontend). El despliegue consiste en subir el `dist/` del frontend al servidor apuntado por `BASE_URL`.
 - **Menú contextual de selección de texto (Copiar/Compartir/Seleccionar todo):** el CSS `user-select: none` global en `index.css` NO basta; el action mode nativo del WebView se dispara igual por long-press. La solución definitiva es en la APK: `MainActivity.kt` sobreescribe `startActionMode` para retornar `null`. Requiere recompilar y subir la APK.
@@ -93,6 +93,7 @@ No hay suite de tests. No ejecutar `npm test` (no existe).
 ### Despliegue (crítico — leer antes de tocar backend)
 - El APK carga el frontend y llama al backend desde `BASE_URL` (producción `https://almacenadorasaiver.com/micarrito`). El teléfono SIEMPRE prueba contra el backend de producción, no contra el XAMPP local.
 - Para aplicar cambios de backend: subir `api.php` + `apicode.php` (+ `update_db.php`) al servidor, abrir `update_db.php` una vez (crea columnas), y **reiniciar PHP / OPcache**. Si el servidor tiene `opcache.validate_timestamps = 0` (común en producción), subir el archivo NUEVO NO tiene efecto: PHP sigue sirviendo el bytecode viejo (sin la acción nueva) hasta reiniciar opcache/FPM.
+- `update_db.php` es idempotente: verifica si la columna/objeto ya existe antes de crearla. Puede ejecutarse múltiples veces sin efectos adversos.
 - Frontend: `npm run build` y subir `dist/`.
 - `dbinfo.php` usa credenciales de env (`SAIVERNET_MYSQL_*`); en este equipo de desarrollo no están seteadas, por lo que el MySQL local da "Unknown database". Para probar el backend localmente se puede levantar un MySQL con esas credenciales y crear la BD `smartsoft_micarrito`.
 
@@ -112,6 +113,8 @@ No hay suite de tests. No ejecutar `npm test` (no existe).
 - **Logo de Login/MenuPrincipal:** `borderRadius: 12px` + `boxShadow: '0 4px 15px rgba(25, 118, 210, 0.4)'` (sombra azul).
 - **Botón de filtro en detalle de Compras:** `CoreMenuPopup` con opciones "Mostrar todo" / "Solo pendientes" / "Solo comprados" / "Cancelar" (rojo). Se alinea con `alignItems: 'flex-end'` en el searchBarStyles para que borde inferior del botón quede alineado con el del input. CoreText usa `wrapperStyle={{ flex: '1 1 auto', minWidth: 0 }}` para ocupar todo el espacio disponible.
 - **`showConfirm`** recibe un **objeto** `{ text, okAction }`, NO argumentos posicionales.
+- **ModalProducto layout:** Cantidad (flex `0 0 40%`) y Precio (flex `1 1 0`) en una fila (con `inputStyle={{ width: '100%' }}` para que el input interno del CoreNumber ocupe el wrapper). CoreVSep de separación entre filas. Prioridad y Comprado (toggles CoreToggle) en la fila siguiente, alineados con `gap`.
+- **Productos de alta prioridad:** `prioridad` 0/1. En la UI, productos con `prioridad = 1` muestran borde izquierdo verde (`#16a34a`), fondo verde claro (`#f0fdf4`), y sombra verde (`rgba(22,163,74,0.15)`). El backend ordena por `prioridad DESC, nombre ASC`.
 
 ## Entorno / quirks
 

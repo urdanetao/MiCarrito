@@ -49,6 +49,7 @@ const Compras = ({ onBack }) => {
     const [productoPrecio, setProductoPrecio] = useState('');
     const [productoCategoriaId, setProductoCategoriaId] = useState(0);
     const [productoComprado, setProductoComprado] = useState('0');
+    const [productoPrioridad, setProductoPrioridad] = useState('0');
 
     const [showModalDuplicar, setShowModalDuplicar] = useState(false);
     const [duplicarFecha, setDuplicarFecha] = useState('');
@@ -321,6 +322,7 @@ const Compras = ({ onBack }) => {
         setProductoPrecio('0.00');
         setProductoCategoriaId(categoriaId);
         setProductoComprado('0');
+        setProductoPrioridad('0');
         setIsAddingNew(true);
         setShowModalProducto(true);
     };
@@ -332,6 +334,7 @@ const Compras = ({ onBack }) => {
         setProductoPrecio('0.00');
         setProductoCategoriaId('');
         setProductoComprado('0');
+        setProductoPrioridad('0');
         setIsAddingNew(true);
         setShowModalProducto(true);
     };
@@ -343,6 +346,7 @@ const Compras = ({ onBack }) => {
         setProductoPrecio(String(prod.precio ?? '0.00'));
         setProductoCategoriaId(prod.idcat);
         setProductoComprado(normalizeBool(prod.comprado) ? '1' : '0');
+        setProductoPrioridad(normalizeBool(prod.prioridad) ? '1' : '0');
         setIsAddingNew(false);
         setShowModalProducto(true);
     };
@@ -356,6 +360,7 @@ const Compras = ({ onBack }) => {
         setProductoPrecio('0.00');
         setProductoCategoriaId(0);
         setProductoComprado('0');
+        setProductoPrioridad('0');
     };
 
     const refreshAfterProductoSave = async (catId) => {
@@ -389,6 +394,7 @@ const Compras = ({ onBack }) => {
                 cantidad: parseInt(productoCantidad, 10) || 0,
                 precio: parseFloat(productoPrecio) || 0,
                 comprado: parseInt(productoComprado, 10) || 0,
+                prioridad: parseInt(productoPrioridad, 10) || 0,
             });
             if (response?.status) {
                 if (isAddingNew) {
@@ -728,17 +734,22 @@ const Compras = ({ onBack }) => {
         transition: 'transform 0.2s ease',
     };
 
-    const prodRowStyles = (comprado) => ({
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        padding: '8px 12px',
-        borderRadius: '6px',
-        backgroundColor: comprado ? '#f0fdf4' : '#fff',
-        border: `1px solid ${comprado ? '#bbf7d0' : '#e2e8f0'}`,
-        opacity: comprado ? 0.7 : 1,
-        transition: 'all 0.2s ease',
-    });
+    const prodRowStyles = (comprado, prioridad) => {
+        const altaPrioridad = normalizeBool(prioridad);
+        return {
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            backgroundColor: comprado ? '#f0fdf4' : altaPrioridad ? '#f0fdf4' : '#fff',
+            border: `1px solid ${comprado ? '#bbf7d0' : altaPrioridad ? '#86efac' : '#e2e8f0'}`,
+            borderLeft: altaPrioridad ? '3px solid #16a34a' : comprado ? '3px solid #bbf7d0' : '1px solid #e2e8f0',
+            boxShadow: altaPrioridad ? '0 2px 8px rgba(22, 163, 74, 0.15)' : 'none',
+            opacity: comprado ? 0.7 : 1,
+            transition: 'all 0.2s ease',
+        };
+    };
 
     const emptyContainerStyles = {
         flex: 1,
@@ -929,7 +940,7 @@ const Compras = ({ onBack }) => {
                                             {prods.map((prod) => (
                                                     <div
                                                         key={prod.id}
-                                                        style={prodRowStyles(normalizeBool(prod.comprado))}
+                                                        style={prodRowStyles(normalizeBool(prod.comprado), prod.prioridad)}
                                                         onClick={() => handleOpenEditProducto(prod)}
                                                     >
                                                         <div style={{ flexShrink: 0, color: normalizeBool(prod.comprado) ? '#16a34a' : '#facc15', fontSize: '16px' }}>
@@ -1046,6 +1057,8 @@ const Compras = ({ onBack }) => {
                     setProductoCategoriaId={setProductoCategoriaId}
                     productoComprado={productoComprado}
                     setProductoComprado={setProductoComprado}
+                    productoPrioridad={productoPrioridad}
+                    setProductoPrioridad={setProductoPrioridad}
                     allCategorias={allCategorias}
                     onSave={handleSaveProducto}
                 />

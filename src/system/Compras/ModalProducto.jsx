@@ -6,7 +6,7 @@ import { CoreText, CoreNumber, CoreButtonSquare, CoreModal, CoreSuggest, CoreTog
 
 const PRODUCTO_COLOR = '#1976d2';
 
-const ModalProducto = ({ open, onClose, isAddingNew, productoNombre, setProductoNombre, productoCantidad, setProductoCantidad, productoPrecio, setProductoPrecio, productoCategoriaId, setProductoCategoriaId, productoComprado, setProductoComprado, allCategorias, onSave }) => {
+const ModalProducto = ({ open, onClose, isAddingNew, productoNombre, setProductoNombre, productoCantidad, setProductoCantidad, productoPrecio, setProductoPrecio, productoCategoriaId, setProductoCategoriaId, productoComprado, setProductoComprado, productoPrioridad, setProductoPrioridad, allCategorias, onSave }) => {
     const productoNombreRef = useRef(null);
     const productoCategoriaRef = useRef(null);
     const productoCloseModalRef = useRef(null);
@@ -61,27 +61,36 @@ const ModalProducto = ({ open, onClose, isAddingNew, productoNombre, setProducto
                                 ignoreFormState={true}
                             />
                             <CoreVSep size={6} />
-                            <CoreNumber
-                                label="Cantidad"
-                                value={productoCantidad}
-                                onChange={(e) => setProductoCantidad(e.target.value)}
-                                decimals={0}
-                                thousandSep={true}
-                                width="100%"
-                                ignoreFormState={true}
-                            />
-                            <CoreVSep size={6} />
-                            <CoreNumber
-                                label="Precio"
-                                value={productoPrecio}
-                                onChange={(e) => setProductoPrecio(e.target.value)}
-                                decimals={2}
-                                thousandSep={true}
-                                width="100%"
-                                ignoreFormState={true}
-                            />
-                            <CoreVSep size={6} />
-                            <div style={{ marginTop: '8px' }}>
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                                <CoreNumber
+                                    label="Cantidad"
+                                    value={productoCantidad}
+                                    onChange={(e) => setProductoCantidad(e.target.value)}
+                                    decimals={0}
+                                    thousandSep={true}
+                                    wrapperStyle={{ flex: '0 0 40%' }}
+                                    inputStyle={{ width: '100%' }}
+                                    ignoreFormState={true}
+                                />
+                                <CoreNumber
+                                    label="Precio"
+                                    value={productoPrecio}
+                                    onChange={(e) => setProductoPrecio(e.target.value)}
+                                    decimals={2}
+                                    thousandSep={true}
+                                    wrapperStyle={{ flex: '1 1 0' }}
+                                    inputStyle={{ width: '100%' }}
+                                    ignoreFormState={true}
+                                />
+                            </div>
+                            <CoreVSep />
+                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                <CoreToggle
+                                    label="Prioridad"
+                                    value={productoPrioridad}
+                                    onChange={(e) => setProductoPrioridad(e.target.value)}
+                                    ignoreFormState={true}
+                                />
                                 <CoreToggle
                                     label="Comprado"
                                     value={productoComprado}
