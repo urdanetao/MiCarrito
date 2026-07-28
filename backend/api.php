@@ -89,7 +89,13 @@ try {
         'disableBiometric',
         'registerDevice',
         'unregisterDevice',
-        'sendTestNotification',
+        'getFavoritos',
+        'saveFavorito',
+        'deleteFavorito',
+        'getContadorComprasRecibidas',
+        'shareCompra',
+        'aceptarComparticion',
+        'rechazarComparticion',
     ];
 
     $rawInput = file_get_contents('php://input');

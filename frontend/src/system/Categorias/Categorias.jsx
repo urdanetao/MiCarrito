@@ -8,7 +8,7 @@ import { setBackHandler, clearBackHandler } from '../../util/util';
 
 const CATEGORY_COLOR = '#388e3c';
 
-const Categorias = () => {
+const Categorias = ({ goBack }) => {
     const { fetchData, BackdropLoader, ErrorModal } = useLazyFetch();
 
     const [categorias, setCategorias] = useState([]);
@@ -143,10 +143,10 @@ const Categorias = () => {
                 handleCloseModalRef.current();
                 return;
             }
-            window.history.back();
+            goBack();
         });
         return () => clearBackHandler();
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const containerStyles = {
         display: 'flex',

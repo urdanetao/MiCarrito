@@ -53,7 +53,7 @@ function getFcmToken() {
 }
 
 function normalizeBool(value) {
-    return value === '1' || value === true || value === 'true';
+    return value === '1' || value === 1 || value === true || value === 'true';
 }
 
 const backHandlerRegistry = {
@@ -106,7 +106,11 @@ function clearBackHandler() {
     backHandlerRegistry.clear();
 }
 
-export { getSessionData, setSessionData, isRunningInWebView, isPushNotificationSupported, getFcmToken, normalizeBool, setBackHandler, setRestoreHandler, clearBackHandler, clearBackHandler as clearRestoreHandler, pushModalBackHandler, popModalBackHandler, backHandlerRegistry };
+function clearRestoreHandler() {
+    backHandlerRegistry.clearRestore();
+}
+
+export { getSessionData, setSessionData, isRunningInWebView, isPushNotificationSupported, getFcmToken, normalizeBool, setBackHandler, setRestoreHandler, clearBackHandler, clearRestoreHandler, pushModalBackHandler, popModalBackHandler, backHandlerRegistry };
 
 function pushModalBackHandler(fn) {
     backHandlerRegistry.pushModalBackHandler(fn);

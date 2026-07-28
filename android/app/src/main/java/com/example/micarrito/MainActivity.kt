@@ -5,6 +5,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -16,6 +18,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
 import android.webkit.SslErrorHandler
@@ -45,6 +48,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var errorLayout: LinearLayout
     private lateinit var btnRetry: Button
     private lateinit var biometricHelper: BiometricHelper
+    private lateinit var qrScannerHelper: QrScannerHelper
     
     private var hasError = false
     private var currentFcmToken: String? = null
@@ -56,6 +60,19 @@ class MainActivity : AppCompatActivity() {
             if (webView.visibility == View.VISIBLE) {
                 webView.evaluateJavascript(
                     "window.onFcmTokenReceived && window.onFcmTokenReceived(${JSONObject.quote(token)})",
+                    null
+                )
+            }
+        }
+    }
+
+    private val fcmDataReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val type = intent?.getStringExtra("type") ?: return
+            val compraId = intent?.getStringExtra("compraId") ?: ""
+            if (webView.visibility == View.VISIBLE) {
+                webView.evaluateJavascript(
+                    "window.onFcmDataReceived && window.onFcmDataReceived(${JSONObject.quote(type)}, ${JSONObject.quote(compraId)})",
                     null
                 )
             }
@@ -84,10 +101,13 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
     private fun registerTokenReceiver() {
         val filter = IntentFilter("com.example.micarrito.FCM_TOKEN_RECEIVED")
+        val dataFilter = IntentFilter("com.example.micarrito.FCM_DATA_RECEIVED")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(tokenReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            registerReceiver(fcmDataReceiver, dataFilter, Context.RECEIVER_NOT_EXPORTED)
         } else {
             registerReceiver(tokenReceiver, filter)
+            registerReceiver(fcmDataReceiver, dataFilter)
         }
     }
 
@@ -113,9 +133,19 @@ class MainActivity : AppCompatActivity() {
         }
 
         biometricHelper = BiometricHelper(this, webView)
+        qrScannerHelper = QrScannerHelper(this) { nickname ->
+            removeQrOverlay()
+            webView.evaluateJavascript(
+                "window.onQRScanned && window.onQRScanned(${JSONObject.quote(nickname)})",
+                null
+            )
+        }
+        val rootView = findViewById<ViewGroup>(R.id.main)
+        qrScannerHelper.setContainer(rootView)
         setupWebView()
         setupBackButton()
         registerTokenReceiver()
+        createNotificationChannel()
 
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
             if (!task.isSuccessful) {
@@ -141,6 +171,13 @@ class MainActivity : AppCompatActivity() {
         }, SPLASH_TIME)
     }
 
+    private fun removeQrOverlay() {
+        qrScannerHelper.removePreviewView()
+        if (!hasError && !webView.isShown) {
+            webView.visibility = View.VISIBLE
+        }
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupWebView() {
         webView.setBackgroundColor(0)
@@ -152,7 +189,7 @@ class MainActivity : AppCompatActivity() {
             mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         }
 
-        webView.addJavascriptInterface(WebAppInterface(this, biometricHelper, webView) { currentFcmToken }, "Android")
+        webView.addJavascriptInterface(WebAppInterface(this, biometricHelper, qrScannerHelper, webView) { currentFcmToken }, "Android")
 
         webView.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(msg: ConsoleMessage?): Boolean {
@@ -222,6 +259,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                "micarrito_notifications",
+                "MiCarrito",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Notificaciones de MiCarrito"
+                enableVibration(true)
+            }
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            manager.createNotificationChannel(channel)
+        }
+    }
+
     private fun showWebView() {
         splashLogo.visibility = View.GONE
         errorLayout.visibility = View.GONE
@@ -244,11 +296,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupBackButton() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (webView.canGoBack()) {
-                    webView.evaluateJavascript("javascript:onAndroidBack()", null)
-                } else {
-                    finish()
-                }
+                webView.evaluateJavascript("javascript:onAndroidBack()", null)
             }
         })
     }
@@ -259,12 +307,13 @@ class MainActivity : AppCompatActivity() {
     class WebAppInterface(
         private val activity: AppCompatActivity,
         private val biometricHelper: BiometricHelper,
+        private val qrScannerHelper: QrScannerHelper,
         private val webView: WebView,
         private val tokenProvider: () -> String?
     ) {
         @JavascriptInterface
         fun onBackPressed() {
-            // Método disponible para ser llamado desde JS: Android.onBackPressed()
+            activity.runOnUiThread { activity.finish() }
         }
 
         @JavascriptInterface
@@ -335,6 +384,19 @@ class MainActivity : AppCompatActivity() {
         fun getFcmToken(): String {
             return tokenProvider() ?: ""
         }
+
+        @JavascriptInterface
+        fun scanQR() {
+            activity.runOnUiThread {
+                try {
+                    webView.visibility = View.INVISIBLE
+                    qrScannerHelper.startScanning()
+                } catch (e: Exception) {
+                    Log.e("WebAppInterface", "scanQR error", e)
+                    webView.visibility = View.VISIBLE
+                }
+            }
+        }
     }
 
     override fun startActionMode(callback: ActionMode.Callback?): ActionMode? {
@@ -346,9 +408,20 @@ class MainActivity : AppCompatActivity() {
         return null
     }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        qrScannerHelper.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        qrScannerHelper.removePreviewView()
         unregisterReceiver(tokenReceiver)
+        unregisterReceiver(fcmDataReceiver)
         val connectivityManager = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
         connectivityManager.unregisterNetworkCallback(networkCallback)
     }

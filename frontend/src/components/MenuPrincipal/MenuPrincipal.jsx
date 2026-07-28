@@ -1,32 +1,56 @@
 
-import { useState } from 'react';
-import { IoSettingsOutline, IoGridOutline, IoCartOutline, IoCashOutline, IoLogOutOutline } from 'react-icons/io5';
-import { showConfirm } from '../CoreConfirm/CoreConfirm';
+import { useState, useEffect, useCallback } from 'react';
+import { IoSettingsOutline, IoGridOutline, IoCartOutline, IoCashOutline, IoLogOutOutline, IoStarOutline } from 'react-icons/io5';
+import CoreGroup from '../CoreGroup/CoreGroup';
 import micarritoLogo from '../../assets/micarrito_logo.png';
+import useLazyFetch from '../../hooks/useLazyFetch/useLazyFetch';
 
 const MENU_OPTIONS = [
     { key: 'config', label: 'Configuracion', icon: <IoSettingsOutline size={24} />, color: '#1976d2' },
     { key: 'monedas', label: 'Monedas', icon: <IoCashOutline size={24} />, color: '#f57c00' },
     { key: 'categorias', label: 'Categorias', icon: <IoGridOutline size={24} />, color: '#388e3c' },
-    { key: 'compras', label: 'Compras', icon: <IoCartOutline size={24} />, color: '#7b1fa2' },
+    { key: 'compras', label: 'Compras', icon: <IoCartOutline size={24} />, color: '#7b1fa2', badge: true },
+    { key: 'favoritos', label: 'Favoritos', icon: <IoStarOutline size={24} />, color: '#f57c00' },
     { key: 'logout', label: 'Cerrar Sesion', icon: <IoLogOutOutline size={24} />, color: '#d32f2f' },
 ];
 
-const MenuPrincipal = ({ onLogout, onSelect }) => {
+const MenuPrincipal = ({ onLogoutConfirm, onSelect }) => {
     const [hoveredKey, setHoveredKey] = useState(null);
+    const [contadorPendientes, setContadorPendientes] = useState(0);
+    const { fetchData } = useLazyFetch();
+
+    const loadContador = useCallback(async () => {
+        try {
+            const response = await fetchData('getContadorComprasRecibidas', {});
+            if (response?.status && response.data) {
+                setContadorPendientes(response.data.count || 0);
+            }
+        } catch {
+            // silently fail
+        }
+    }, [fetchData]);
+
+    /* eslint-disable react-hooks/set-state-in-effect */
+    useEffect(() => {
+        loadContador();
+    }, [loadContador]);
+    /* eslint-enable react-hooks/set-state-in-effect */
+
+    useEffect(() => {
+        const handler = (e) => {
+            if (e.detail?.type === 'compra_recibida' || e.detail?.type === 'comparticion_respondida') {
+                loadContador();
+            }
+        };
+        window.addEventListener('fcmdata', handler);
+        return () => window.removeEventListener('fcmdata', handler);
+    }, [loadContador]);
 
     const handleOptionClick = (key) => {
         if (key === 'logout') {
-            showConfirm({
-                text: '¿Está seguro que desea cerrar sesión?',
-                okLabel: 'Aceptar',
-                cancelLabel: 'Cancelar',
-                okAction: () => {
-                    if (typeof onLogout === 'function') {
-                        onLogout();
-                    }
-                },
-            });
+            if (typeof onLogoutConfirm === 'function') {
+                onLogoutConfirm();
+            }
         } else if (typeof onSelect === 'function') {
             onSelect(key);
         }
@@ -55,8 +79,8 @@ const MenuPrincipal = ({ onLogout, onSelect }) => {
     const gridStyles = {
         display: 'grid',
         gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: '10px',
-        maxWidth: '360px',
+        gap: '16px',
+        maxWidth: '340px',
         width: '100%',
     };
 
@@ -68,7 +92,7 @@ const MenuPrincipal = ({ onLogout, onSelect }) => {
             alignItems: 'center',
             justifyContent: 'center',
             gap: '6px',
-            padding: '14px 6px',
+            padding: '10px 4px',
             border: 'none',
             borderRadius: '10px',
             background: isHovered ? '#ffffff' : 'linear-gradient(145deg, #f8faff, #eef4fd)',
@@ -82,16 +106,15 @@ const MenuPrincipal = ({ onLogout, onSelect }) => {
             width: '100%',
             boxSizing: 'border-box',
             position: 'relative',
-            overflow: 'hidden',
         };
     };
 
     const getIconContainerStyles = (key, color) => {
         const isHovered = hoveredKey === key;
         return {
-            width: '40px',
-            height: '40px',
-            borderRadius: '10px',
+            width: '34px',
+            height: '34px',
+            borderRadius: '8px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -115,22 +138,36 @@ const MenuPrincipal = ({ onLogout, onSelect }) => {
     return (
         <div style={containerStyles}>
             <img src={micarritoLogo} alt="MiCarrito" style={logoStyles} />
-            <div style={gridStyles}>
-                {MENU_OPTIONS.map(({ key, label, icon, color }) => (
-                    <button
-                        key={key}
-                        style={getCardStyles(key, color)}
-                        onClick={() => handleOptionClick(key)}
-                        onMouseEnter={() => setHoveredKey(key)}
-                        onMouseLeave={() => setHoveredKey(null)}
-                    >
+            <CoreGroup label="Menu Principal">
+                <div style={gridStyles}>
+                    {MENU_OPTIONS.map(({ key, label, icon, color }) => (
+                        <button
+                            key={key}
+                            style={getCardStyles(key, color)}
+                            onClick={() => handleOptionClick(key)}
+                            onMouseEnter={() => setHoveredKey(key)}
+                            onMouseLeave={() => setHoveredKey(null)}
+                        >
+                        {key === 'compras' && contadorPendientes > 0 && (
+                            <span style={{
+                                position: 'absolute', top: -5, right: -5,
+                                background: '#d32f2f', color: '#fff',
+                                borderRadius: '50%', minWidth: '20px', height: '20px',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: '11px', fontWeight: 'bold', padding: '0 5px',
+                                zIndex: 1,
+                            }}>
+                                {contadorPendientes}
+                            </span>
+                        )}
                         <div style={getIconContainerStyles(key, color)}>
                             <span style={{ color: getIconColor(key, color), transition: 'color 0.2s ease' }}>{icon}</span>
                         </div>
                         <div style={getLabelStyles(key, color)}>{label}</div>
                     </button>
-                ))}
-            </div>
+                        ))}
+                </div>
+            </CoreGroup>
         </div>
     );
 };

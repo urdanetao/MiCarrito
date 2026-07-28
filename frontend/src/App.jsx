@@ -20,7 +20,7 @@ function App() {
             return;
         }
         try {
-            await fetchData('registerDevice', { fcmToken: token, platform: 'android' });
+            await fetchData('registerDevice', { fcmToken: token, platform: 'android' }, { silent: true });
         } catch {
             // useLazyFetch muestra el error
         }
@@ -75,11 +75,18 @@ function App() {
             toast(msg);
         };
 
+        window.onFcmDataReceived = (type, compraId) => {
+            if (type === 'compra_recibida' || type === 'comparticion_respondida') {
+                window.dispatchEvent(new CustomEvent('fcmdata', { detail: { type, compraId } }));
+            }
+        };
+
         return () => {
             delete window.onFcmTokenReceived;
             delete window.onBiometricEnabled;
             delete window.onBiometricAuth;
             delete window.onBiometricError;
+            delete window.onFcmDataReceived;
         };
     }, [fetchData, registerFcmToken]);
 

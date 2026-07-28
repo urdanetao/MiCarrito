@@ -280,7 +280,7 @@ const useLazyFetch = () => {
 	React.useEffect(() => subscribeLazyFetchState(() => {
 	}), []);
 
-	const fetchData = useCallback(async (action, params = {}) => {
+	const fetchData = useCallback(async (action, params = {}, options = {}) => {
 		incrementGlobalPendingRequests();
 		try {
 			const sessionData = getSessionData();
@@ -319,7 +319,7 @@ const useLazyFetch = () => {
 				data: jsonData.data || [],
 			};
 			setResponse(formattedResponse);
-			if (formattedResponse.message) {
+			if (formattedResponse.message && (!options.silent || !formattedResponse.status)) {
 				if (typeof Android !== 'undefined' && Android.showToast) {
 					const duration = formattedResponse.status ? 2000 : 3500;
 					Android.showToast(formattedResponse.message, duration);

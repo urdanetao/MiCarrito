@@ -78,9 +78,13 @@ CREATE TABLE IF NOT EXISTS compras (
     estado  INT          NOT NULL DEFAULT 0 COMMENT '0=pendiente, 1=completada',
     fecha   DATE         NOT NULL,
     idmon   INT(10)      DEFAULT NULL COMMENT 'FK -> monedas.id (nullable)',
+    id_usuario_origen    INT          NULL     COMMENT 'FK -> usuarios.id (NULL=propia, ID=remitente si compartida)',
+    estado_comparticion  INT          NOT NULL DEFAULT 0 COMMENT '0=normal, 1=recibida_pendiente, 2=aceptada, 3=rechazada',
     PRIMARY KEY (id),
     KEY idx_idusu (idusu),
-    KEY idx_idmon (idmon)
+    KEY idx_idmon (idmon),
+    KEY idx_id_usuario_origen (id_usuario_origen),
+    KEY idx_estado_comparticion (estado_comparticion)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS productos (
@@ -115,9 +119,21 @@ CREATE TABLE IF NOT EXISTS user_devices (
     KEY idx_idusu (idusu),
     KEY idx_fcm_token (fcm_token(191))
 ) ENGINE=InnoDB;
-";
 
-$tables = ['usuarios', 'categorias', 'monedas', 'compras', 'productos', 'config', 'user_devices'];
+CREATE TABLE IF NOT EXISTS favoritos (
+    id                  INT          NOT NULL,
+    idusu               INT          NOT NULL COMMENT 'FK -> usuarios.id (propietario)',
+    nickname            VARCHAR(50)  NOT NULL COMMENT 'Nickname del favorito',
+    id_usuario_favorito INT          NOT NULL COMMENT 'FK -> usuarios.id (el favorito)',
+    fecha               DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_favorito (idusu, id_usuario_favorito),
+    KEY idx_idusu (idusu),
+    KEY idx_id_usuario_favorito (id_usuario_favorito)
+) ENGINE=InnoDB;
+
+";
+$tables = ['usuarios', 'categorias', 'monedas', 'compras', 'productos', 'config', 'user_devices', 'favoritos'];
 
 $conn->query("SET FOREIGN_KEY_CHECKS = 0");
 

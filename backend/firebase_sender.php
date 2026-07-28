@@ -147,10 +147,35 @@ function sendFcmPush($fcmToken, $title, $body, $data = [])
 
     if ($result['status'] !== 200) {
         saveLog("Firebase: error enviando push (HTTP {$result['status']}): {$result['body']}");
+        deactivateUnregisteredToken($fcmToken);
+        return false;
+    }
+
+    $responseData = json_decode($result['body'], true);
+    if (isset($responseData['error'])) {
+        $errorCode = $responseData['error']['details'][0]['errorCode'] ?? $responseData['error']['status'] ?? 'UNKNOWN';
+        saveLog("Firebase: push rechazado (HTTP 200): $errorCode — token: " . substr($fcmToken, 0, 20) . "...");
+        if ($errorCode === 'UNREGISTERED') {
+            deactivateUnregisteredToken($fcmToken);
+        }
         return false;
     }
 
     return true;
+}
+
+function deactivateUnregisteredToken($fcmToken)
+{
+    $dbInfo = getMySqlDbInfo(MICARRITO_DB);
+    $conn = new MySqlDataManager($dbInfo);
+    if (!$conn->IsConnected()) {
+        saveLog("Firebase: error BD al desactivar token: " . $conn->GetErrorMessage());
+        return;
+    }
+    $fcmTokenSql = escapeSqlLiteral($fcmToken);
+    $conn->Query("UPDATE user_devices SET active = 0 WHERE fcm_token = '$fcmTokenSql'");
+    $conn->Close();
+    saveLog("Firebase: token desactivado automáticamente: " . substr($fcmToken, 0, 20) . "...");
 }
 
 function sendPushToUser($userId, $title, $body, $data = [])
@@ -168,15 +193,20 @@ function sendPushToUser($userId, $title, $body, $data = [])
     $conn->Close();
 
     if ($devices === false || count($devices) === 0) {
+        saveLog("sendPushToUser: No hay dispositivos activos para usuario $userId");
         return 0;
     }
 
     $sent = 0;
+    $failed = 0;
     foreach ($devices as $device) {
         if (sendFcmPush($device['fcm_token'], $title, $body, $data)) {
             $sent++;
+        } else {
+            $failed++;
         }
     }
 
+    saveLog("sendPushToUser: usuario=$userId, dispositivos=" . count($devices) . ", enviados=$sent, fallidos=$failed");
     return $sent;
 }

@@ -6,15 +6,9 @@ import { backHandlerRegistry } from './util/util';
 
 window.onAndroidBack = () => {
     if (!backHandlerRegistry.invoke()) {
-        window.history.back();
+        backHandlerRegistry.handler = null;
     }
 };
-
-window.addEventListener('popstate', () => {
-    if (typeof backHandlerRegistry.restore === 'function') {
-        backHandlerRegistry.restore();
-    }
-});
 
 createRoot(document.getElementById('root')).render(
     <ToastProvider>

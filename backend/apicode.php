@@ -269,7 +269,7 @@ function getCompras($params, $token)
         return getResultObject(false, $conn->GetErrorMessage());
     }
 
-    $sql = "SELECT c.id, c.descrip, c.estado, c.fecha, c.idmon, IFNULL(m.simbolo, '$') AS simbolo, (SELECT IFNULL(SUM(CASE WHEN p.comprado = 1 THEN p.precio * p.cantidad ELSE 0 END), 0) FROM productos p WHERE p.idcom = c.id) AS total FROM compras c LEFT JOIN monedas m ON c.idmon = m.id WHERE c.idusu = $userId";
+    $sql = "SELECT c.id, c.descrip, c.estado, c.fecha, c.idmon, IFNULL(m.simbolo, '$') AS simbolo, c.id_usuario_origen, c.estado_comparticion, u.nombre AS remitente, (SELECT IFNULL(SUM(CASE WHEN p.comprado = 1 THEN p.precio * p.cantidad ELSE 0 END), 0) FROM productos p WHERE p.idcom = c.id) AS total FROM compras c LEFT JOIN monedas m ON c.idmon = m.id LEFT JOIN usuarios u ON c.id_usuario_origen = u.id WHERE c.idusu = $userId";
 
     if ($filtro === 'pendientes') {
         $sql .= " AND estado = 0";
@@ -1429,44 +1429,418 @@ function unregisterDevice($params, $token)
     return getResultObject(true, 'Dispositivo desregistrado');
 }
 
-function sendTestNotification($params, $token)
+function getUserNicknameFromToken($token)
+{
+    $sessionManager = new SessionManager();
+    $session = $sessionManager->getSession($token);
+    if ($session === null || !isset($session['user']['nickname'])) {
+        return null;
+    }
+    return $session['user']['nickname'];
+}
+
+function getFavoritos($params, $token)
 {
     $userId = getUserIdFromToken($token);
     if ($userId === null) {
-        return getResultObject(false, 'Sesion invalida');
+        return getResultObject(false, 'Sesión inválida');
     }
 
-    require_once __DIR__ . '/firebase_sender.php';
+    $dbInfo = getMySqlDbInfo(MICARRITO_DB);
+    $conn = new MySqlDataManager($dbInfo);
+
+    if (!$conn->IsConnected()) {
+        return getResultObject(false, $conn->GetErrorMessage());
+    }
+
+    $result = $conn->Query("SELECT f.id, f.nickname, u.nombre AS nombre_completo, f.id_usuario_favorito, f.fecha FROM favoritos f LEFT JOIN usuarios u ON u.nickname = f.nickname WHERE f.idusu = $userId ORDER BY f.nickname ASC");
+    $conn->Close();
+
+    if ($result === false) {
+        return getResultObject(false, 'Error al obtener favoritos');
+    }
+
+    return getResultObject(true, '', $result);
+}
+
+function saveFavorito($params, $token)
+{
+    $userId = getUserIdFromToken($token);
+    if ($userId === null) {
+        return getResultObject(false, 'Sesión inválida');
+    }
 
     $nickname = isset($params['nickname']) ? trim((string) $params['nickname']) : '';
+    if ($nickname === '') {
+        return getResultObject(false, 'Debe indicar el nombre de usuario');
+    }
 
-    if ($nickname !== '') {
-        $nicknameSql = escapeSqlLiteral($nickname);
-        $dbInfo = getMySqlDbInfo(MICARRITO_DB);
-        $conn = new MySqlDataManager($dbInfo);
+    $nicknameSql = escapeSqlLiteral($nickname);
 
-        if (!$conn->IsConnected()) {
-            return getResultObject(false, $conn->GetErrorMessage());
-        }
+    $dbInfo = getMySqlDbInfo(MICARRITO_DB);
+    $conn = new MySqlDataManager($dbInfo);
 
-        $sql = "SELECT id FROM usuarios WHERE nickname = '$nicknameSql'";
-        $result = $conn->Query($sql);
+    if (!$conn->IsConnected()) {
+        return getResultObject(false, $conn->GetErrorMessage());
+    }
+
+    $result = $conn->Query("SELECT id FROM usuarios WHERE nickname = '$nicknameSql'");
+    if ($result === false || count($result) === 0) {
         $conn->Close();
+        return getResultObject(false, "Usuario '$nickname' no encontrado");
+    }
 
-        if ($result === false || count($result) === 0) {
-            return getResultObject(false, "Usuario '$nickname' no encontrado");
+    $targetUserId = (int) $result[0]['id'];
+
+    if ($targetUserId === $userId) {
+        $conn->Close();
+        return getResultObject(false, 'No puede agregarse a sí mismo como favorito');
+    }
+
+    $existing = $conn->Query("SELECT id FROM favoritos WHERE idusu = $userId AND id_usuario_favorito = $targetUserId");
+    if ($existing !== false && count($existing) > 0) {
+        $conn->Close();
+        return getResultObject(true, 'Ya existe en favoritos');
+    }
+
+    $result = $conn->Query("SELECT t.id FROM favoritos AS t ORDER BY t.id DESC LIMIT 1");
+    if ($result === false) {
+        $msg = $conn->GetErrorMessage();
+        $conn->Close();
+        return getResultObject(false, $msg);
+    }
+
+    $newId = 1;
+    if (count($result) > 0) {
+        $newId = (int) $result[0]['id'] + 1;
+    }
+
+    $conn->Query("INSERT INTO favoritos (id, idusu, nickname, id_usuario_favorito, fecha) VALUES ($newId, $userId, '$nicknameSql', $targetUserId, NOW())");
+    $conn->Close();
+
+    return getResultObject(true, 'Favorito agregado', ['id' => $newId, 'nickname' => $nickname, 'id_usuario_favorito' => $targetUserId]);
+}
+
+function deleteFavorito($params, $token)
+{
+    $userId = getUserIdFromToken($token);
+    if ($userId === null) {
+        return getResultObject(false, 'Sesión inválida');
+    }
+
+    $id = isset($params['id']) ? (int) $params['id'] : 0;
+    if ($id <= 0) {
+        return getResultObject(false, 'ID de favorito inválido');
+    }
+
+    $dbInfo = getMySqlDbInfo(MICARRITO_DB);
+    $conn = new MySqlDataManager($dbInfo);
+
+    if (!$conn->IsConnected()) {
+        return getResultObject(false, $conn->GetErrorMessage());
+    }
+
+    $conn->Query("DELETE FROM favoritos WHERE id = $id AND idusu = $userId");
+    $conn->Close();
+
+    return getResultObject(true, 'Favorito eliminado');
+}
+
+function getContadorComprasRecibidas($params, $token)
+{
+    $userId = getUserIdFromToken($token);
+    if ($userId === null) {
+        return getResultObject(false, 'Sesión inválida');
+    }
+
+    $dbInfo = getMySqlDbInfo(MICARRITO_DB);
+    $conn = new MySqlDataManager($dbInfo);
+
+    if (!$conn->IsConnected()) {
+        return getResultObject(false, $conn->GetErrorMessage());
+    }
+
+    $result = $conn->Query("SELECT COUNT(*) AS total FROM compras WHERE idusu = $userId AND estado_comparticion = 1");
+    $conn->Close();
+
+    if ($result === false) {
+        return getResultObject(false, 'Error al contar compras');
+    }
+
+    $count = (int) $result[0]['total'];
+    return getResultObject(true, '', ['count' => $count]);
+}
+
+function shareCompra($params, $token)
+{
+    $userId = getUserIdFromToken($token);
+    if ($userId === null) {
+        return getResultObject(false, 'Sesión inválida');
+    }
+
+    $senderNickname = getUserNicknameFromToken($token);
+
+    $origenId = isset($params['idcompra']) ? (int) $params['idcompra'] : 0;
+    $targetNickname = isset($params['nickname']) ? trim((string) $params['nickname']) : '';
+    $addToFavorito = isset($params['addToFavorito']) ? (bool) $params['addToFavorito'] : false;
+
+    if ($origenId <= 0) {
+        return getResultObject(false, 'ID de compra inválido');
+    }
+
+    if ($targetNickname === '') {
+        return getResultObject(false, 'Debe indicar el nombre de usuario destino');
+    }
+
+    $targetNicknameSql = escapeSqlLiteral($targetNickname);
+
+    $dbInfo = getMySqlDbInfo(MICARRITO_DB);
+    $conn = new MySqlDataManager($dbInfo);
+
+    if (!$conn->IsConnected()) {
+        return getResultObject(false, $conn->GetErrorMessage());
+    }
+
+    $result = $conn->Query("SELECT id FROM usuarios WHERE nickname = '$targetNicknameSql'");
+    if ($result === false || count($result) === 0) {
+        $conn->Close();
+        return getResultObject(false, "Usuario '$targetNickname' no encontrado");
+    }
+
+    $targetUserId = (int) $result[0]['id'];
+
+    if ($targetUserId === $userId) {
+        $conn->Close();
+        return getResultObject(false, 'No puede compartir una consigo mismo');
+    }
+
+    $result = $conn->Query("SELECT id, descrip, fecha, idmon FROM compras WHERE id = $origenId AND idusu = $userId");
+    if ($result === false || count($result) === 0) {
+        $conn->Close();
+        return getResultObject(false, 'Compra origen no encontrada');
+    }
+
+    $origenDescrip = $result[0]['descrip'];
+    $origenFecha = $result[0]['fecha'];
+    $origenIdmon = (int) $result[0]['idmon'];
+
+    $productos = $conn->Query("SELECT p.id, p.idcat, p.nombre, p.cantidad, p.precio, p.comprado, p.prioridad, c.descrip AS cat_nombre FROM productos p INNER JOIN categorias c ON p.idcat = c.id WHERE p.idcom = $origenId");
+    if ($productos === false) {
+        $msg = $conn->GetErrorMessage();
+        $conn->Close();
+        return getResultObject(false, $msg);
+    }
+
+    if (!$conn->BeginTransaction()) {
+        $msg = $conn->GetErrorMessage();
+        $conn->Close();
+        return getResultObject(false, $msg);
+    }
+
+    $result = $conn->Query("SELECT t.id FROM compras AS t ORDER BY t.id DESC LIMIT 1");
+    if ($result === false) {
+        $conn->RollbackTransaction();
+        $msg = $conn->GetErrorMessage();
+        $conn->Close();
+        return getResultObject(false, $msg);
+    }
+
+    $newCompraId = 1;
+    if (count($result) > 0) {
+        $newCompraId = (int) $result[0]['id'] + 1;
+    }
+
+    $origenDescripSql = escapeSqlLiteral($origenDescrip);
+    $sql = "INSERT INTO compras (id, idusu, descrip, estado, fecha, idmon, id_usuario_origen, estado_comparticion) VALUES ($newCompraId, $targetUserId, '$origenDescripSql', 0, '$origenFecha', $origenIdmon, $userId, 1)";
+    $result = $conn->Query($sql);
+    if ($result === false) {
+        $conn->RollbackTransaction();
+        $msg = $conn->GetErrorMessage();
+        $conn->Close();
+        return getResultObject(false, $msg);
+    }
+
+    $catMap = [];
+    $result = $conn->Query("SELECT t.id FROM productos AS t ORDER BY t.id DESC LIMIT 1");
+    if ($result === false) {
+        $conn->RollbackTransaction();
+        $msg = $conn->GetErrorMessage();
+        $conn->Close();
+        return getResultObject(false, $msg);
+    }
+
+    $nextProdId = 1;
+    if (count($result) > 0) {
+        $nextProdId = (int) $result[0]['id'] + 1;
+    }
+
+    $result = $conn->Query("SELECT t.id FROM categorias AS t ORDER BY t.id DESC LIMIT 1");
+    if ($result === false) {
+        $conn->RollbackTransaction();
+        $msg = $conn->GetErrorMessage();
+        $conn->Close();
+        return getResultObject(false, $msg);
+    }
+
+    $nextCatId = 1;
+    if (count($result) > 0) {
+        $nextCatId = (int) $result[0]['id'] + 1;
+    }
+
+    foreach ($productos as $prod) {
+        $srcCatId = (int) $prod['idcat'];
+        if (!isset($catMap[$srcCatId])) {
+            $catNombreSql = escapeSqlLiteral($prod['cat_nombre']);
+            $existingCat = $conn->Query("SELECT id FROM categorias WHERE idusu = $targetUserId AND descrip = '$catNombreSql'");
+            if ($existingCat !== false && count($existingCat) > 0) {
+                $catMap[$srcCatId] = (int) $existingCat[0]['id'];
+            } else {
+                $catSql = "INSERT INTO categorias (id, idusu, descrip) VALUES ($nextCatId, $targetUserId, '$catNombreSql')";
+                $catResult = $conn->Query($catSql);
+                if ($catResult === false) {
+                    $conn->RollbackTransaction();
+                    $msg = $conn->GetErrorMessage();
+                    $conn->Close();
+                    return getResultObject(false, $msg);
+                }
+                $catMap[$srcCatId] = $nextCatId;
+                $nextCatId++;
+            }
         }
 
-        $targetUserId = (int) $result[0]['id'];
-        $sent = sendPushToUser($targetUserId, 'MiCarrito', 'Esta es una notificacion de prueba de MiCarrito');
-    } else {
-        $sent = sendPushToUser($userId, 'MiCarrito', 'Esta es una notificacion de prueba de MiCarrito');
+        $destCatId = $catMap[$srcCatId];
+        $nombreSql = escapeSqlLiteral($prod['nombre']);
+        $prodSql = "INSERT INTO productos (id, idcom, idcat, nombre, cantidad, precio, comprado, prioridad) VALUES ($nextProdId, $newCompraId, $destCatId, '$nombreSql', {$prod['cantidad']}, {$prod['precio']}, {$prod['comprado']}, {$prod['prioridad']})";
+        $result = $conn->Query($prodSql);
+        if ($result === false) {
+            $conn->RollbackTransaction();
+            $msg = $conn->GetErrorMessage();
+            $conn->Close();
+            return getResultObject(false, $msg);
+        }
+        $nextProdId++;
     }
 
-    if ($sent === 0) {
-        return getResultObject(false, 'No hay dispositivos registrados para enviar notificacion');
+    if ($addToFavorito) {
+        $existing = $conn->Query("SELECT id FROM favoritos WHERE idusu = $userId AND id_usuario_favorito = $targetUserId");
+        if ($existing !== false && count($existing) === 0) {
+            $result = $conn->Query("SELECT t.id FROM favoritos AS t ORDER BY t.id DESC LIMIT 1");
+            if ($result !== false) {
+                $newFavId = 1;
+                if (count($result) > 0) {
+                    $newFavId = (int) $result[0]['id'] + 1;
+                }
+                $conn->Query("INSERT INTO favoritos (id, idusu, nickname, id_usuario_favorito, fecha) VALUES ($newFavId, $userId, '$targetNicknameSql', $targetUserId, NOW())");
+            }
+        }
     }
 
-    $destino = $nickname !== '' ? $nickname : 'tu dispositivo';
-    return getResultObject(true, "Notificacion enviada a $destino ($sent dispositivo(s))", ['devices' => $sent]);
+    if (!$conn->CommitTransaction()) {
+        $msg = $conn->GetErrorMessage();
+        $conn->Close();
+        return getResultObject(false, $msg);
+    }
+
+    $conn->Close();
+
+    require_once __DIR__ . '/firebase_sender.php';
+    sendPushToUser($targetUserId, 'MiCarrito', "$senderNickname te compartió una compra: $origenDescrip", ['type' => 'compra_recibida', 'compraId' => (string) $newCompraId]);
+
+    return getResultObject(true, 'Compra compartida exitosamente', ['id' => $newCompraId]);
+}
+
+function aceptarComparticion($params, $token)
+{
+    $userId = getUserIdFromToken($token);
+    if ($userId === null) {
+        return getResultObject(false, 'Sesión inválida');
+    }
+
+    $compraId = isset($params['idcompra']) ? (int) $params['idcompra'] : 0;
+    if ($compraId <= 0) {
+        return getResultObject(false, 'ID de compra inválido');
+    }
+
+    $dbInfo = getMySqlDbInfo(MICARRITO_DB);
+    $conn = new MySqlDataManager($dbInfo);
+
+    if (!$conn->IsConnected()) {
+        return getResultObject(false, $conn->GetErrorMessage());
+    }
+
+    $result = $conn->Query("SELECT id, descrip, id_usuario_origen FROM compras WHERE id = $compraId AND idusu = $userId AND estado_comparticion = 1");
+    if ($result === false || count($result) === 0) {
+        $conn->Close();
+        return getResultObject(false, 'Compra compartida no encontrada o ya respondida');
+    }
+
+    $compra = $result[0];
+    $origenId = (int) $compra['id_usuario_origen'];
+    $descrip = $compra['descrip'];
+
+    $conn->Query("UPDATE compras SET estado_comparticion = 2 WHERE id = $compraId");
+    $conn->Close();
+
+    if ($origenId > 0) {
+        require_once __DIR__ . '/firebase_sender.php';
+        $receiverNickname = getUserNicknameFromToken($token);
+        sendPushToUser($origenId, 'MiCarrito', "Tu compra '$descrip' fue aceptada por $receiverNickname", ['type' => 'comparticion_respondida', 'compraId' => (string) $compraId]);
+    }
+
+    return getResultObject(true, 'Compra aceptada');
+}
+
+function rechazarComparticion($params, $token)
+{
+    $userId = getUserIdFromToken($token);
+    if ($userId === null) {
+        return getResultObject(false, 'Sesión inválida');
+    }
+
+    $compraId = isset($params['idcompra']) ? (int) $params['idcompra'] : 0;
+    if ($compraId <= 0) {
+        return getResultObject(false, 'ID de compra inválido');
+    }
+
+    $dbInfo = getMySqlDbInfo(MICARRITO_DB);
+    $conn = new MySqlDataManager($dbInfo);
+
+    if (!$conn->IsConnected()) {
+        return getResultObject(false, $conn->GetErrorMessage());
+    }
+
+    $result = $conn->Query("SELECT id, descrip, id_usuario_origen FROM compras WHERE id = $compraId AND idusu = $userId AND estado_comparticion = 1");
+    if ($result === false || count($result) === 0) {
+        $conn->Close();
+        return getResultObject(false, 'Compra compartida no encontrada o ya respondida');
+    }
+
+    $compra = $result[0];
+    $origenId = (int) $compra['id_usuario_origen'];
+    $descrip = $compra['descrip'];
+
+    if (!$conn->BeginTransaction()) {
+        $msg = $conn->GetErrorMessage();
+        $conn->Close();
+        return getResultObject(false, $msg);
+    }
+
+    $conn->Query("DELETE FROM productos WHERE idcom = $compraId");
+    $conn->Query("DELETE FROM compras WHERE id = $compraId");
+
+    if (!$conn->CommitTransaction()) {
+        $msg = $conn->GetErrorMessage();
+        $conn->Close();
+        return getResultObject(false, $msg);
+    }
+
+    $conn->Close();
+
+    if ($origenId > 0) {
+        require_once __DIR__ . '/firebase_sender.php';
+        $receiverNickname = getUserNicknameFromToken($token);
+        sendPushToUser($origenId, 'MiCarrito', "Tu compra '$descrip' fue rechazada por $receiverNickname", ['type' => 'comparticion_respondida', 'compraId' => (string) $compraId]);
+    }
+
+    return getResultObject(true, 'Compra rechazada');
 }

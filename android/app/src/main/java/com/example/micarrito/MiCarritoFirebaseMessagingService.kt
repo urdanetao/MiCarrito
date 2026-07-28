@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -53,8 +54,11 @@ class MiCarritoFirebaseMessagingService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val largeIcon = BitmapFactory.decodeResource(resources, R.drawable.micarrito_icon)
+
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setLargeIcon(largeIcon)
             .setContentTitle(title)
             .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -64,6 +68,15 @@ class MiCarritoFirebaseMessagingService : FirebaseMessagingService() {
 
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         manager.notify(System.currentTimeMillis().toInt(), notification)
+
+        if (message.data.isNotEmpty()) {
+            val dataIntent = Intent("com.example.micarrito.FCM_DATA_RECEIVED").apply {
+                putExtra("type", message.data["type"] ?: "")
+                putExtra("compraId", message.data["compraId"] ?: "")
+                setPackage(packageName)
+            }
+            sendBroadcast(dataIntent)
+        }
     }
 
     private fun createNotificationChannel() {

@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { IoArrowBack, IoCheckmark, IoCart } from 'react-icons/io5';
 import { ENTRY_MODE } from '../../util/constants';
-import { CoreText, CoreButtonSquare, CoreModal, CoreSelect, CoreWindow, CoreGroup } from '../../components';
+import { CoreText, CoreButtonSquare, CoreModal, CoreSelect, CoreWindow, CoreGroup, CoreVSep } from '../../components';
 
 const COMPRA_COLOR = '#7b1fa2';
 
@@ -39,6 +39,7 @@ const ModalCompra = ({ open, onClose, compraEditId, compraFecha, setCompraFecha,
                             width="100%"
                             ignoreFormState={true}
                         />
+                        <CoreVSep />
                         <CoreText
                             label="Descripcion"
                             value={compraDescripcion}
@@ -49,6 +50,7 @@ const ModalCompra = ({ open, onClose, compraEditId, compraFecha, setCompraFecha,
                             width="100%"
                             ignoreFormState={true}
                         />
+                        <CoreVSep />
                         <CoreSelect
                             label="Moneda"
                             value={compraMonedaId}

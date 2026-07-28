@@ -5,6 +5,7 @@ import {
     releaseModalLayerOrder,
     resolveModalLayerZIndex,
 } from '../../util/modalStack';
+import { pushModalBackHandler, popModalBackHandler } from '../../util/util';
 
 const CORE_MENU_POPUP_STYLE_ID = 'core-menu-popup-styles';
 const CORE_MENU_POPUP_STYLE_CONTENT = `
@@ -88,6 +89,22 @@ const CoreMenuPopup = ({
         };
     }, [open]);
 
+    const handleClose = () => {
+        if (typeof onClose === 'function') {
+            onClose();
+        }
+    };
+
+    useEffect(() => {
+        if (!open) {
+            return undefined;
+        }
+        pushModalBackHandler(() => handleClose());
+        return () => {
+            popModalBackHandler();
+        };
+    }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
     useEffect(() => {
         if (!shouldRender) {
             return undefined;
@@ -106,12 +123,6 @@ const CoreMenuPopup = ({
             }
         };
     }, [shouldRender, layerOrder]);
-
-    const handleClose = () => {
-        if (typeof onClose === 'function') {
-            onClose();
-        }
-    };
 
     const handleItemClick = (item) => {
         if (typeof item.onClick === 'function') {
@@ -148,10 +159,11 @@ const CoreMenuPopup = ({
     const menuStyles = {
         width: '100%',
         maxWidth: '280px',
+        maxHeight: '60vh',
+        overflowY: 'auto',
         backgroundColor: '#fff',
         borderRadius: '10px',
         boxShadow: '0 12px 36px rgba(15, 23, 42, 0.2)',
-        overflow: 'hidden',
         animation: isClosing ? 'coreMenuPopupSlideOut 0.2s ease forwards' : 'coreMenuPopupSlideIn 0.2s ease forwards',
     };
 

@@ -1,6 +1,6 @@
 
-import { useState, useEffect, useCallback } from 'react';
-import { getSessionData, setSessionData, setBackHandler, setRestoreHandler, clearRestoreHandler, isRunningInWebView } from "../../util/util";
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { getSessionData, setSessionData, setBackHandler, isRunningInWebView } from "../../util/util";
 import useLazyFetch from "../../hooks/useLazyFetch/useLazyFetch";
 import { MenuPrincipal, CoreConfirm, CoreButtonSquare } from "../../components";
 import { showConfirm } from "../../components/CoreConfirm/CoreConfirm";
@@ -9,83 +9,86 @@ import Categorias from "../Categorias/Categorias";
 import Compras from "../Compras/Compras";
 import Monedas from "../Monedas/Monedas";
 import Configuracion from "../Configuracion/Configuracion";
+import Favoritos from "../Favoritos/Favoritos";
 
 const Engine = ({ setSession }) => {
     const { fetchData, BackdropLoader, ErrorModal } = useLazyFetch();
     const [selectedSection, setSelectedSection] = useState(null);
+    const navigationStackRef = useRef([]);
 
     const handleLogout = useCallback(async () => {
-        try {
-            await fetchData("logout", {});
-        } catch {
-            // intentionally empty
-        }
-
         const emptySession = getSessionData(true);
         setSessionData(emptySession);
         if (typeof setSession === 'function') {
             setSession(emptySession);
         }
+        try {
+            await fetchData("logout", {});
+        } catch {
+            // intentionally empty
+        }
     }, [fetchData, setSession]);
 
-    const handleBack = useCallback(() => {
-        window.history.back();
-    }, []);
+    const handleLogoutConfirm = useCallback(() => {
+        showConfirm({
+            text: '¿Está seguro que desea cerrar sesión?',
+            okLabel: 'Aceptar',
+            cancelLabel: 'Cancelar',
+            color: '#d32f2f',
+            okAction: () => {
+                handleLogout();
+            },
+        });
+    }, [handleLogout]);
 
-    const goToMenu = useCallback(() => {
-        setSelectedSection(null);
-    }, []);
+    const goBack = useCallback(() => {
+        if (navigationStackRef.current.length > 0) {
+            const prev = navigationStackRef.current.pop();
+            setSelectedSection(prev);
+        } else {
+            handleLogoutConfirm();
+        }
+    }, [handleLogoutConfirm]);
+
+    const handleBack = useCallback(() => {
+        goBack();
+    }, [goBack]);
 
     const handleSelectSection = useCallback((section) => {
+        navigationStackRef.current.push(selectedSection);
         setSelectedSection(section);
-        window.history.pushState({ section }, '', '');
-    }, []);
-
-    useEffect(() => {
-        if (selectedSection === null) {
-            setBackHandler(() => {
-                showConfirm({
-                    text: 'Desea cerrar sesion?',
-                    okLabel: 'Salir',
-                    cancelLabel: 'Cancelar',
-                    color: '#d32f2f',
-                    okAction: () => {
-                        handleLogout();
-                    },
-                });
-            });
-        }
-    }, [selectedSection, handleLogout]);
-
-    useEffect(() => {
-        if (selectedSection === null) {
-            setRestoreHandler(() => {
-                const st = window.history.state;
-                setSelectedSection(st && st.section ? st.section : null);
-            });
-        } else {
-            clearRestoreHandler();
-        }
     }, [selectedSection]);
+
+    useEffect(() => {
+        if (selectedSection === null) {
+            navigationStackRef.current = [];
+            setBackHandler(() => {
+                handleLogoutConfirm();
+            });
+        }
+    }, [selectedSection, handleLogoutConfirm]);
 
     const showBackButton = !isRunningInWebView() && selectedSection !== null;
 
     return (
         <>
             {selectedSection === null && (
-                <MenuPrincipal onLogout={handleLogout} onSelect={handleSelectSection} />
+                <MenuPrincipal onLogoutConfirm={handleLogoutConfirm} onSelect={handleSelectSection} />
             )}
             {selectedSection === 'categorias' && (
-                <Categorias onBack={goToMenu} />
+                <Categorias goBack={goBack} />
             )}
             {selectedSection === 'compras' && (
-                <Compras onBack={goToMenu} />
+                <Compras goBack={goBack} />
             )}
             {selectedSection === 'monedas' && (
-                <Monedas onBack={goToMenu} />
+                <Monedas goBack={goBack} />
             )}
             {selectedSection === 'config' && (
-                <Configuracion onBack={goToMenu} />
+                <Configuracion goBack={goBack} />
+            )}
+            {selectedSection === 'favoritos' && (
+                <Favoritos goBack={goBack} />
             )}
             {showBackButton && (
                 <div style={{ position: 'fixed', bottom: '16px', left: '16px', zIndex: 100 }}>

@@ -8,7 +8,7 @@ import { setBackHandler, clearBackHandler } from '../../util/util';
 
 const MONEDA_COLOR = '#f57c00';
 
-const Monedas = () => {
+const Monedas = ({ goBack }) => {
     const { fetchData, BackdropLoader, ErrorModal } = useLazyFetch();
 
     const [monedas, setMonedas] = useState([]);
@@ -151,10 +151,10 @@ const Monedas = () => {
                 handleCloseModalRef.current();
                 return;
             }
-            window.history.back();
+            goBack();
         });
         return () => clearBackHandler();
-    }, []);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const containerStyles = {
         display: 'flex',

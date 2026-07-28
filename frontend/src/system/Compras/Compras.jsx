@@ -2,22 +2,25 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
     IoPencil, IoTrash, IoCartOutline, IoAdd,
     IoEllipsisVertical, IoCopy, IoChevronDown, IoChevronForward,
-    IoCheckmarkCircle, IoTimeOutline, IoFilter,
+    IoCheckmarkCircle, IoTimeOutline, IoFilter, IoShareOutline,
+    IoLockClosed,
 } from 'react-icons/io5';
 import { COLOR_MAP, ENTRY_MODE } from '../../util/constants';
 import useLazyFetch from '../../hooks/useLazyFetch/useLazyFetch';
 import { CoreButtonSquare, CoreMenuPopup, CoreText } from '../../components';
 import { showConfirm, isConfirmOpen, dismissConfirm } from '../../components/CoreConfirm/CoreConfirm';
-import { setBackHandler, setRestoreHandler, clearBackHandler, clearRestoreHandler, normalizeBool } from '../../util/util';
+import { setBackHandler, clearBackHandler, normalizeBool } from '../../util/util';
 import ModalCompra from './ModalCompra';
 import ModalProducto from './ModalProducto';
 import ModalDuplicar from './ModalDuplicar';
 import ModalCopiar from './ModalCopiar';
+import ModalCompartir from './ModalCompartir';
+import ModalCompraRecibida from './ModalCompraRecibida';
 
 const COMPRA_COLOR = '#7b1fa2';
 const PRODUCTO_COLOR = '#1976d2';
 
-const Compras = ({ onBack }) => {
+const Compras = ({ goBack }) => {
     const { fetchData, BackdropLoader, ErrorModal } = useLazyFetch();
 
     const [compras, setCompras] = useState([]);
@@ -62,6 +65,12 @@ const Compras = ({ onBack }) => {
 
     const [busqueda, setBusqueda] = useState('');
     const [filtroDetalle, setFiltroDetalle] = useState('pendientes');
+
+    const [showModalCompartir, setShowModalCompartir] = useState(false);
+    const [compraACompartir, setCompraACompartir] = useState(null);
+
+    const [showModalCompraRecibida, setShowModalCompraRecibida] = useState(false);
+    const [compraRecibida, setCompraRecibida] = useState(null);
 
     const refreshCompras = useCallback(async () => {
         try {
@@ -115,6 +124,23 @@ const Compras = ({ onBack }) => {
             }
         }
     }, [compras]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => {
+        const handler = (e) => {
+            if (e.detail?.type === 'compra_recibida' || e.detail?.type === 'comparticion_respondida') {
+                refreshCompras();
+            }
+        };
+        window.addEventListener('fcmdata', handler);
+        return () => window.removeEventListener('fcmdata', handler);
+    }, [refreshCompras]);
+
+    const handleOpenCompartir = (compra) => {
+        setCompraACompartir(compra);
+        setMenuCompraId(null);
+        setShowModalCompartir(true);
+    };
+
 
     const getMonedaSimbolo = (idmon) => {
         if (!idmon) return '$';
@@ -245,7 +271,6 @@ const Compras = ({ onBack }) => {
         setSelectedCompra(compra);
         setExpandedCategorias(new Set());
         setProductosPorCategoria({});
-        window.history.pushState({ section: 'compras', compraDetail: true }, '', '');
         try {
             const [catsResp, allCatsResp, configResp] = await Promise.all([
                 fetchData('getCategoriasCompra', { idcom: compra.id }),
@@ -365,16 +390,23 @@ const Compras = ({ onBack }) => {
 
     const refreshAfterProductoSave = async (catId) => {
         const catIdNum = Number(catId);
-        if (expandedCategorias.has(catIdNum)) {
-            await loadProductosCategoria(selectedCompra.id, catIdNum);
-        }
-        const catsResp = await fetchData('getCategoriasCompra', { idcom: selectedCompra.id });
+        const compraActual = selectedCompraRef.current;
+        if (!compraActual) return;
+
+        setExpandedCategorias((prev) => {
+            const next = new Set(prev);
+            next.add(catIdNum);
+            return next;
+        });
+
+        await loadProductosCategoria(compraActual.id, catIdNum);
+        const catsResp = await fetchData('getCategoriasCompra', { idcom: compraActual.id });
         if (catsResp?.status && Array.isArray(catsResp.data)) {
             setCategoriasCompra(catsResp.data);
         }
         const comprasResp = await fetchData('getCompras', { filtro });
         if (comprasResp?.status && Array.isArray(comprasResp.data)) {
-            const updated = comprasResp.data.find((c) => c.id === selectedCompra.id);
+            const updated = comprasResp.data.find((c) => c.id === compraActual.id);
             if (updated) {
                 setSelectedCompra((prev) => ({ ...prev, estado: updated.estado, total: updated.total, simbolo: updated.simbolo }));
             }
@@ -552,27 +584,15 @@ const Compras = ({ onBack }) => {
                 setProductosPorCategoria({});
                 return;
             }
-            window.history.back();
-        });
-
-        setRestoreHandler(() => {
-            const st = window.history.state;
-            if (st && st.section === 'compras' && st.compraDetail) {
-                return;
-            }
-            if (st && st.section === 'compras' && !st.compraDetail) {
+            if (selectedCompraRef.current) {
                 handleBackFromDetail();
                 return;
             }
-            handleBackFromDetail();
-            if (typeof onBack === 'function') {
-                onBack();
-            }
+            goBack();
         });
 
         return () => {
             clearBackHandler();
-            clearRestoreHandler();
         };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1109,11 +1129,16 @@ const Compras = ({ onBack }) => {
                             <div style={emptySubtextStyles}>Presiona + para agregar la primera</div>
                         </div>
                     ) : (
-                        compras.map((compra) => (
+                        compras.map((compra) => {
+                            const isCompartida = Number(compra.estado_comparticion) === 1;
+                            return (
                             <div
                                 key={compra.id}
-                                style={cardStyles}
-                                onClick={() => handleOpenDetail(compra)}
+                                style={{
+                                    ...cardStyles,
+                                    ...(isCompartida ? { borderLeft: '4px solid #16a34a', background: '#f0fdf4', boxShadow: '0 2px 6px rgba(22,163,74,0.15)' } : {}),
+                                }}
+                                onClick={() => isCompartida ? setCompraRecibida(compra) || setShowModalCompraRecibida(true) : handleOpenDetail(compra)}
                                 onMouseEnter={(e) => {
                                     e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)';
                                     e.currentTarget.style.transform = 'translateY(-1px)';
@@ -1123,32 +1148,52 @@ const Compras = ({ onBack }) => {
                                     e.currentTarget.style.transform = 'translateY(0)';
                                 }}
                             >
-                                <div style={iconContainerStyles}>
-                                    <IoCartOutline size={16} />
-                                </div>
-                                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                                    <div style={descriptionStyles} title={compra.descrip}>
-                                        {compra.descrip}
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <span style={dateStyles}>{compra.fecha}</span>
-                                        <span style={statusBadgeStyles(compra.estado)}>
-                                            {normalizeBool(compra.estado) ? <IoCheckmarkCircle size={10} /> : <IoTimeOutline size={10} />}
-                                        </span>
-                                        <span style={totalStyles}>{formatTotal(compra.total, compra.simbolo)}</span>
-                                    </div>
-                                </div>
-                                <div style={{ flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
-                                    <CoreButtonSquare
-                                        icon={<IoEllipsisVertical size={14} />}
-                                        color="#6b7280"
-                                        onClick={() => setMenuCompraId(menuCompraId === compra.id ? null : compra.id)}
-                                        ignoreFormState={true}
-                                        style={{ width: '28px', height: '28px' }}
-                                    />
-                                </div>
+                                {isCompartida ? (
+                                    <>
+                                        <div style={{ ...iconContainerStyles, background: '#16a34a15', color: '#16a34a' }}>
+                                            <IoLockClosed size={16} />
+                                        </div>
+                                        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                            <div style={descriptionStyles} title={compra.descrip}>
+                                                {compra.descrip}
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <span style={dateStyles}>{compra.fecha}</span>
+                                                <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: '600' }}>Recibida</span>
+                                            </div>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div style={iconContainerStyles}>
+                                            <IoCartOutline size={16} />
+                                        </div>
+                                        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                            <div style={descriptionStyles} title={compra.descrip}>
+                                                {compra.descrip}
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                <span style={dateStyles}>{compra.fecha}</span>
+                                                <span style={statusBadgeStyles(compra.estado)}>
+                                                    {normalizeBool(compra.estado) ? <IoCheckmarkCircle size={10} /> : <IoTimeOutline size={10} />}
+                                                </span>
+                                                <span style={totalStyles}>{formatTotal(compra.total, compra.simbolo)}</span>
+                                            </div>
+                                        </div>
+                                        <div style={{ flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+                                            <CoreButtonSquare
+                                                icon={<IoEllipsisVertical size={14} />}
+                                                color="#6b7280"
+                                                onClick={() => setMenuCompraId(menuCompraId === compra.id ? null : compra.id)}
+                                                ignoreFormState={true}
+                                                style={{ width: '28px', height: '28px' }}
+                                            />
+                                        </div>
+                                    </>
+                                )}
                             </div>
-                        ))
+                            );
+                        })
                     )}
                 </div>
 
@@ -1159,12 +1204,21 @@ const Compras = ({ onBack }) => {
             <CoreMenuPopup
                 open={menuCompraId !== null}
                 onClose={() => setMenuCompraId(null)}
-                items={menuCompraId !== null ? [
-                    { icon: <IoPencil />, label: 'Editar', onClick: () => handleOpenEditCompra(compras.find((c) => c.id === menuCompraId)) },
-                    { icon: <IoCheckmarkCircle />, label: normalizeBool(compras.find((c) => c.id === menuCompraId)?.estado) ? 'Marcar Pendiente' : 'Marcar Completa', onClick: () => handleChangeEstadoCompra(compras.find((c) => c.id === menuCompraId)) },
-                    { icon: <IoCopy />, label: 'Duplicar', onClick: () => handleOpenDuplicar(compras.find((c) => c.id === menuCompraId)) },
-                    { icon: <IoTrash />, label: 'Eliminar', color: COLOR_MAP.error, onClick: () => handleDeleteCompra(compras.find((c) => c.id === menuCompraId)) },
-                ] : []}
+                items={menuCompraId !== null ? (() => {
+                    const compra = compras.find((c) => c.id === menuCompraId);
+                    if (!compra) return [];
+                    const isCompartida = Number(compra.estado_comparticion) === 1;
+                    if (isCompartida) {
+                        return [];
+                    }
+                    return [
+                        { icon: <IoPencil />, label: 'Editar', onClick: () => handleOpenEditCompra(compra) },
+                        { icon: <IoCheckmarkCircle />, label: normalizeBool(compra.estado) ? 'Marcar Pendiente' : 'Marcar Completa', onClick: () => handleChangeEstadoCompra(compra) },
+                        { icon: <IoCopy />, label: 'Duplicar', onClick: () => handleOpenDuplicar(compra) },
+                        { icon: <IoShareOutline />, label: 'Compartir', onClick: () => handleOpenCompartir(compra) },
+                        { icon: <IoTrash />, label: 'Eliminar', color: COLOR_MAP.error, onClick: () => handleDeleteCompra(compra) },
+                    ];
+                })() : []}
             />
 
             <ModalCompra
@@ -1190,6 +1244,20 @@ const Compras = ({ onBack }) => {
                 duplicarDescripcion={duplicarDescripcion}
                 setDuplicarDescripcion={setDuplicarDescripcion}
                 onSave={handleDuplicar}
+            />
+
+            <ModalCompartir
+                open={showModalCompartir}
+                onClose={() => { setShowModalCompartir(false); setCompraACompartir(null); }}
+                compra={compraACompartir}
+                onShared={() => { setShowModalCompartir(false); setCompraACompartir(null); refreshCompras(); }}
+            />
+
+            <ModalCompraRecibida
+                open={showModalCompraRecibida}
+                onClose={() => { setShowModalCompraRecibida(false); setCompraRecibida(null); }}
+                compra={compraRecibida || {}}
+                onResponded={() => { setShowModalCompraRecibida(false); setCompraRecibida(null); refreshCompras(); window.dispatchEvent(new CustomEvent('fcmdata', { detail: { type: 'comparticion_respondida' } })); }}
             />
         </>
     );
