@@ -295,6 +295,16 @@
             return $found;
         }
 
+        public function Escape($value)
+        {
+            if (!$this->connected) {
+                $this->errorMessage = 'Escape: No hay una conexión activa';
+                $this->SaveEventLog($this->errorMessage);
+                return (string) $value;
+            }
+            return mysqli_real_escape_string($this->conn, (string) $value);
+        }
+
         public function Close() {
             if ($this->connected) {
                 if ($this->stmt !== false) {

@@ -8,6 +8,14 @@ Monorepo with React/Vite frontend, PHP backend, and Android WebView APK target. 
 
 ## Recent Work — v2.0 Release (COMPLETE)
 
+### SQL Injection Fix — `escapeSqlLiteral` → `$conn->Escape()` (v2.1)
+- Replaced `escapeSqlLiteral()` (only escaped `'` → `''`, vulnerable to `\'` backslash-quote attack) with `$conn->Escape()` using `mysqli_real_escape_string()`
+- New method `MySqlDataManager::Escape($value)` in `mysql-data-manager.php` wraps `mysqli_real_escape_string()` with connection-aware escaping (handles `\`, `'`, `"`, `\n`, charset)
+- All 27 call sites migrated: 8 calls moved after `$conn` creation, 19 simple renames
+- **Vulnerability fixed**: `loginBiometric()` was exploitable via `\' OR 1=1 -- ` — now properly escapes backslash
+- Standalone `escapeSqlLiteral()` function removed from `apicode.php`
+- Files: `backend/mysql-data-manager.php`, `backend/apicode.php`, `backend/firebase_sender.php`
+
 ### Navigation Stack (Engine.jsx)
 - Replaced `history.pushState` + `popstate` listener with a `navigationStackRef` (array) in Engine.jsx
 - `handleSelectSection` pushes current section to stack before changing
@@ -75,4 +83,5 @@ Monorepo with React/Vite frontend, PHP backend, and Android WebView APK target. 
 - `frontend/src/system/Engine/Engine.jsx` — Navigation stack + logout
 - `backend/apicode.php` — Backend API (all actions)
 - `backend/firebase_sender.php` — Push notification service (FCM HTTP v1)
+- `backend/mysql-data-manager.php` — DB wrapper with `Escape()`, `Query`, transactions
 - `database/create_schema.php` — Database schema (verified up to date)

@@ -172,7 +172,7 @@ function deactivateUnregisteredToken($fcmToken)
         saveLog("Firebase: error BD al desactivar token: " . $conn->GetErrorMessage());
         return;
     }
-    $fcmTokenSql = escapeSqlLiteral($fcmToken);
+    $fcmTokenSql = $conn->Escape($fcmToken);
     $conn->Query("UPDATE user_devices SET active = 0 WHERE fcm_token = '$fcmTokenSql'");
     $conn->Close();
     saveLog("Firebase: token desactivado automáticamente: " . substr($fcmToken, 0, 20) . "...");

@@ -5,11 +5,6 @@ require_once __DIR__ . '/dbinfo.php';
 
 define('MICARRITO_DB', 'smartsoft_micarrito');
 
-function escapeSqlLiteral($value)
-{
-    return str_replace("'", "''", (string) $value);
-}
-
 function login($params)
 {
     $nickname = isset($params['nickname']) ? trim((string) $params['nickname']) : '';
@@ -27,14 +22,14 @@ function login($params)
         return getResultObject(false, 'Nombre de usuario inválido');
     }
 
-    $nicknameSql = escapeSqlLiteral($nickname);
-
     $dbInfo = getMySqlDbInfo(MICARRITO_DB);
     $conn = new MySqlDataManager($dbInfo);
 
     if (!$conn->IsConnected()) {
         return getResultObject(false, $conn->GetErrorMessage());
     }
+
+    $nicknameSql = $conn->Escape($nickname);
 
     $sqlCommand = "select t.* from usuarios as t where t.nickname = '$nicknameSql'";
     $usuario = $conn->Query($sqlCommand);
@@ -137,14 +132,14 @@ function saveCategoria($params, $token)
         return getResultObject(false, 'La descripción no puede exceder 30 caracteres');
     }
 
-    $descripSql = escapeSqlLiteral($descrip);
-
     $dbInfo = getMySqlDbInfo(MICARRITO_DB);
     $conn = new MySqlDataManager($dbInfo);
 
     if (!$conn->IsConnected()) {
         return getResultObject(false, $conn->GetErrorMessage());
     }
+
+    $descripSql = $conn->Escape($descrip);
 
     if ($id > 0) {
         $sql = "UPDATE categorias SET descrip = '$descripSql' WHERE id = $id AND idusu = $userId";
@@ -307,14 +302,14 @@ function saveCompra($params, $token)
         return getResultObject(false, 'Debe indicar la descripción');
     }
 
-    $descripSql = escapeSqlLiteral($descrip);
-
     $dbInfo = getMySqlDbInfo(MICARRITO_DB);
     $conn = new MySqlDataManager($dbInfo);
 
     if (!$conn->IsConnected()) {
         return getResultObject(false, $conn->GetErrorMessage());
     }
+
+    $descripSql = $conn->Escape($descrip);
 
     if ($id > 0) {
         $sql = "UPDATE compras SET descrip = '$descripSql', fecha = '$fecha', idmon = $idmon WHERE id = $id AND idusu = $userId";
@@ -508,7 +503,7 @@ function duplicateCompra($params, $token)
     }
 
     $finalDescrip = $nuevaDescrip !== '' ? $nuevaDescrip : $origenDescrip;
-    $finalDescripSql = escapeSqlLiteral($finalDescrip);
+    $finalDescripSql = $conn->Escape($finalDescrip);
 
     $sql = "INSERT INTO compras (id, idusu, descrip, estado, fecha, idmon) VALUES ($newId, $userId, '$finalDescripSql', 0, '$nuevaFecha', $origenIdmon)";
     $result = $conn->Query($sql);
@@ -544,7 +539,7 @@ function duplicateCompra($params, $token)
         }
 
         foreach ($productos as $prod) {
-            $nombreSql = escapeSqlLiteral($prod['nombre']);
+            $nombreSql = $conn->Escape($prod['nombre']);
             $sql = "INSERT INTO productos (id, idcom, idcat, nombre, cantidad, precio, comprado, prioridad) VALUES ($nextProdId, $newId, {$prod['idcat']}, '$nombreSql', {$prod['cantidad']}, {$prod['precio']}, {$prod['comprado']}, {$prod['prioridad']})";
             $result = $conn->Query($sql);
             if ($result === false) {
@@ -658,14 +653,14 @@ function saveProducto($params, $token)
         return getResultObject(false, 'Debe indicar el nombre del producto');
     }
 
-    $nombreSql = escapeSqlLiteral($nombre);
-
     $dbInfo = getMySqlDbInfo(MICARRITO_DB);
     $conn = new MySqlDataManager($dbInfo);
 
     if (!$conn->IsConnected()) {
         return getResultObject(false, $conn->GetErrorMessage());
     }
+
+    $nombreSql = $conn->Escape($nombre);
 
     if ($id > 0) {
         $sql = "UPDATE productos SET nombre = '$nombreSql', cantidad = $cantidad, precio = $precio, comprado = $comprado, prioridad = $prioridad WHERE id = $id AND idcom = $compraId";
@@ -830,16 +825,16 @@ function saveMoneda($params, $token)
         return getResultObject(false, 'Siglas, nombre y simbolo son requeridos');
     }
 
-    $siglasSql = escapeSqlLiteral($siglas);
-    $nombreSql = escapeSqlLiteral($nombre);
-    $simboloSql = escapeSqlLiteral($simbolo);
-
     $dbInfo = getMySqlDbInfo(MICARRITO_DB);
     $conn = new MySqlDataManager($dbInfo);
 
     if (!$conn->IsConnected()) {
         return getResultObject(false, $conn->GetErrorMessage());
     }
+
+    $siglasSql = $conn->Escape($siglas);
+    $nombreSql = $conn->Escape($nombre);
+    $simboloSql = $conn->Escape($simbolo);
 
     if ($id > 0) {
         $sql = "UPDATE monedas SET siglas = '$siglasSql', nombre = '$nombreSql', simbolo = '$simboloSql' WHERE id = $id AND id_usu = $userId";
@@ -990,7 +985,7 @@ function copiarCategoria($params, $token)
     }
 
     foreach ($productos as $prod) {
-        $nombreSql = escapeSqlLiteral($prod['nombre']);
+        $nombreSql = $conn->Escape($prod['nombre']);
         $sql = "INSERT INTO productos (id, idcom, idcat, nombre, cantidad, precio, comprado, prioridad) VALUES ($nextId, $compraDestinoId, $categoriaId, '$nombreSql', {$prod['cantidad']}, {$prod['precio']}, 0, {$prod['prioridad']})";
         $result = $conn->Query($sql);
         if ($result === false) {
@@ -1183,9 +1178,9 @@ function createUsuario($params, $token)
         return getResultObject(false, 'No tiene permisos para crear usuarios');
     }
 
-    $nicknameSql = escapeSqlLiteral($nickname);
-    $nombreSql = escapeSqlLiteral($nombre);
-    $emailSql = escapeSqlLiteral($email);
+    $nicknameSql = $conn->Escape($nickname);
+    $nombreSql = $conn->Escape($nombre);
+    $emailSql = $conn->Escape($email);
     $pwdHash = hash('sha3-512', $pwd);
 
     $sqlCheck = "SELECT id FROM usuarios WHERE nickname = '$nicknameSql' LIMIT 1";
@@ -1268,7 +1263,7 @@ function registerBiometric($params, $token)
         return getResultObject(false, $conn->GetErrorMessage());
     }
 
-    $bioTokenSql = escapeSqlLiteral($bioToken);
+    $bioTokenSql = $conn->Escape($bioToken);
     $sql = "UPDATE usuarios SET bio_token = '$bioTokenSql' WHERE id = $userId";
     $result = $conn->Query($sql);
 
@@ -1291,15 +1286,15 @@ function loginBiometric($params)
         return getResultObject(false, 'Debe indicar usuario y credencial biométrica');
     }
 
-    $nicknameSql = escapeSqlLiteral($nickname);
-    $bioTokenSql = escapeSqlLiteral($bioToken);
-
     $dbInfo = getMySqlDbInfo(MICARRITO_DB);
     $conn = new MySqlDataManager($dbInfo);
 
     if (!$conn->IsConnected()) {
         return getResultObject(false, $conn->GetErrorMessage());
     }
+
+    $nicknameSql = $conn->Escape($nickname);
+    $bioTokenSql = $conn->Escape($bioToken);
 
     $sql = "SELECT * FROM usuarios WHERE nickname = '$nicknameSql' AND bio_token = '$bioTokenSql'";
     $usuario = $conn->Query($sql);
@@ -1377,7 +1372,7 @@ function registerDevice($params, $token)
         return getResultObject(false, $conn->GetErrorMessage());
     }
 
-    $fcmTokenSql = escapeSqlLiteral($fcmToken);
+    $fcmTokenSql = $conn->Escape($fcmToken);
 
     $existing = $conn->Query("SELECT id FROM user_devices WHERE fcm_token = '$fcmTokenSql'");
 
@@ -1391,7 +1386,7 @@ function registerDevice($params, $token)
             $newId = (int) $result[0]['id'] + 1;
         }
 
-        $platformSql = escapeSqlLiteral($platform);
+        $platformSql = $conn->Escape($platform);
         $conn->Query("INSERT INTO user_devices (id, idusu, fcm_token, platform, active, fecha_registro, fecha_actualizacion)
             VALUES ($newId, $userId, '$fcmTokenSql', '$platformSql', 1, NOW(), NOW())");
         $deviceId = $newId;
@@ -1422,7 +1417,7 @@ function unregisterDevice($params, $token)
         return getResultObject(false, $conn->GetErrorMessage());
     }
 
-    $fcmTokenSql = escapeSqlLiteral($fcmToken);
+    $fcmTokenSql = $conn->Escape($fcmToken);
     $conn->Query("UPDATE user_devices SET active = 0, fecha_actualizacion = NOW() WHERE fcm_token = '$fcmTokenSql' AND idusu = $userId");
 
     $conn->Close();
@@ -1475,14 +1470,14 @@ function saveFavorito($params, $token)
         return getResultObject(false, 'Debe indicar el nombre de usuario');
     }
 
-    $nicknameSql = escapeSqlLiteral($nickname);
-
     $dbInfo = getMySqlDbInfo(MICARRITO_DB);
     $conn = new MySqlDataManager($dbInfo);
 
     if (!$conn->IsConnected()) {
         return getResultObject(false, $conn->GetErrorMessage());
     }
+
+    $nicknameSql = $conn->Escape($nickname);
 
     $result = $conn->Query("SELECT id FROM usuarios WHERE nickname = '$nicknameSql'");
     if ($result === false || count($result) === 0) {
@@ -1592,14 +1587,14 @@ function shareCompra($params, $token)
         return getResultObject(false, 'Debe indicar el nombre de usuario destino');
     }
 
-    $targetNicknameSql = escapeSqlLiteral($targetNickname);
-
     $dbInfo = getMySqlDbInfo(MICARRITO_DB);
     $conn = new MySqlDataManager($dbInfo);
 
     if (!$conn->IsConnected()) {
         return getResultObject(false, $conn->GetErrorMessage());
     }
+
+    $targetNicknameSql = $conn->Escape($targetNickname);
 
     $result = $conn->Query("SELECT id FROM usuarios WHERE nickname = '$targetNicknameSql'");
     if ($result === false || count($result) === 0) {
@@ -1650,7 +1645,7 @@ function shareCompra($params, $token)
         $newCompraId = (int) $result[0]['id'] + 1;
     }
 
-    $origenDescripSql = escapeSqlLiteral($origenDescrip);
+    $origenDescripSql = $conn->Escape($origenDescrip);
     $sql = "INSERT INTO compras (id, idusu, descrip, estado, fecha, idmon, id_usuario_origen, estado_comparticion) VALUES ($newCompraId, $targetUserId, '$origenDescripSql', 0, '$origenFecha', $origenIdmon, $userId, 1)";
     $result = $conn->Query($sql);
     if ($result === false) {
@@ -1690,7 +1685,7 @@ function shareCompra($params, $token)
     foreach ($productos as $prod) {
         $srcCatId = (int) $prod['idcat'];
         if (!isset($catMap[$srcCatId])) {
-            $catNombreSql = escapeSqlLiteral($prod['cat_nombre']);
+            $catNombreSql = $conn->Escape($prod['cat_nombre']);
             $existingCat = $conn->Query("SELECT id FROM categorias WHERE idusu = $targetUserId AND descrip = '$catNombreSql'");
             if ($existingCat !== false && count($existingCat) > 0) {
                 $catMap[$srcCatId] = (int) $existingCat[0]['id'];
@@ -1709,7 +1704,7 @@ function shareCompra($params, $token)
         }
 
         $destCatId = $catMap[$srcCatId];
-        $nombreSql = escapeSqlLiteral($prod['nombre']);
+        $nombreSql = $conn->Escape($prod['nombre']);
         $prodSql = "INSERT INTO productos (id, idcom, idcat, nombre, cantidad, precio, comprado, prioridad) VALUES ($nextProdId, $newCompraId, $destCatId, '$nombreSql', {$prod['cantidad']}, {$prod['precio']}, {$prod['comprado']}, {$prod['prioridad']})";
         $result = $conn->Query($prodSql);
         if ($result === false) {
